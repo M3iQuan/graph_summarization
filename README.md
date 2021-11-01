@@ -1,0 +1,4 @@
+# graph_summarization
+这是关于Graph Summarization下三个算法Greedy,SWeG和LDME的代码整理。
+
+目前SWeG算法和LDME算法都没有发现问题，但Greedy算法还是存在一点小问题，即当合并阈值设置为0时继续迭代合并会导致压缩率下降。
