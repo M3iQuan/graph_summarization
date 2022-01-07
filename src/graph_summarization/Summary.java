@@ -1137,6 +1137,7 @@ public class Summary {
         System.out.println("@after: " + total + "\t ===> \t" + (P_num + Cp_num + Cm_num) + String.format("(P:%d, C+:%d, C-:%d)", P_num, Cp_num, Cm_num));
         System.out.printf("@Compression: %f(before) \t %f(after)%n", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total));
     }
+
     /**
      * 计算当前的压缩率
      * @return 压缩后的边数量
