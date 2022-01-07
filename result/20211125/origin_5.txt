@@ -1,0 +1,134 @@
+----------------------------------- Test ALGORITHM ----------------------------------------
+
+------------------------- ITERATION 1
+# Divide Phase
+Group's size larger than 1000:9450 1305 1305 1022 5246 1306 2016 1099 1165 1948 
+# Merge Phase
+Threshold=0.500000
+@Time: 45.327000 seconds
+# Encode Phase
+@Time: 2.408000 seconds
+# Evaluate Phase
+@Compression: 0.71065
+@nodes: 325557	 ===> 	209580
+@edges: 5565380	 ===> 	1610354(P:1589682, C+:3750, C-:16922)
+
+------------------------- ITERATION 2
+# Divide Phase
+Group's size larger than 1000:7833 
+# Merge Phase
+Threshold=0.333333
+@Time: 25.749000 seconds
+# Encode Phase
+@Time: 2.279000 seconds
+# Evaluate Phase
+@Compression: 0.85120
+@nodes: 325557	 ===> 	181586
+@edges: 5565380	 ===> 	828102(P:706757, C+:66959, C-:54386)
+
+------------------------- ITERATION 3
+# Divide Phase
+Group's size larger than 1000:3323 
+# Merge Phase
+Threshold=0.250000
+@Time: 5.225000 seconds
+# Encode Phase
+@Time: 1.377000 seconds
+# Evaluate Phase
+@Compression: 0.86617
+@nodes: 325557	 ===> 	168299
+@edges: 5565380	 ===> 	744827(P:574286, C+:97357, C-:73184)
+
+------------------------- ITERATION 4
+# Divide Phase
+Group's size larger than 1000:3600 
+# Merge Phase
+Threshold=0.200000
+@Time: 6.342000 seconds
+# Encode Phase
+@Time: 0.919000 seconds
+# Evaluate Phase
+@Compression: 0.87245
+@nodes: 325557	 ===> 	160755
+@edges: 5565380	 ===> 	709856(P:511050, C+:114376, C-:84430)
+
+------------------------- ITERATION 5
+# Divide Phase
+Group's size larger than 1000:1235 
+# Merge Phase
+Threshold=0.166667
+@Time: 1.091000 seconds
+# Encode Phase
+@Time: 1.372000 seconds
+# Evaluate Phase
+@Compression: 0.87620
+@nodes: 325557	 ===> 	155138
+@edges: 5565380	 ===> 	689014(P:469199, C+:125242, C-:94573)
+
+------------------------- ITERATION 6
+# Divide Phase
+Group's size larger than 1000:2346 
+# Merge Phase
+Threshold=0.142857
+@Time: 2.795000 seconds
+# Encode Phase
+@Time: 1.013000 seconds
+# Evaluate Phase
+@Compression: 0.87851
+@nodes: 325557	 ===> 	150518
+@edges: 5565380	 ===> 	676117(P:441111, C+:133383, C-:101623)
+
+------------------------- ITERATION 7
+# Divide Phase
+Group's size larger than 1000:4693 1310 
+# Merge Phase
+Threshold=0.125000
+@Time: 11.314000 seconds
+# Encode Phase
+@Time: 1.437000 seconds
+# Evaluate Phase
+@Compression: 0.87981
+@nodes: 325557	 ===> 	146448
+@edges: 5565380	 ===> 	668880(P:417505, C+:142675, C-:108700)
+
+------------------------- ITERATION 8
+# Divide Phase
+Group's size larger than 1000:3209 
+# Merge Phase
+Threshold=0.111111
+@Time: 5.046000 seconds
+# Encode Phase
+@Time: 1.652000 seconds
+# Evaluate Phase
+@Compression: 0.88094
+@nodes: 325557	 ===> 	143390
+@edges: 5565380	 ===> 	662638(P:401184, C+:148424, C-:113030)
+
+------------------------- ITERATION 9
+# Divide Phase
+Group's size larger than 1000:3244 
+# Merge Phase
+Threshold=0.100000
+@Time: 4.775000 seconds
+# Encode Phase
+@Time: 1.161000 seconds
+# Evaluate Phase
+@Compression: 0.88148
+@nodes: 325557	 ===> 	140974
+@edges: 5565380	 ===> 	659610(P:388030, C+:153827, C-:117753)
+
+------------------------- ITERATION 10
+# Divide Phase
+Group's size larger than 1000:
+# Merge Phase
+Threshold=0.090909
+@Time: 0.348000 seconds
+# Encode Phase
+@Time: 0.945000 seconds
+# Evaluate Phase
+@Compression: 0.88226
+@nodes: 325557	 ===> 	138574
+@edges: 5565380	 ===> 	655264(P:375291, C+:158341, C-:121632)
+
+Process finished with exit code 0
+

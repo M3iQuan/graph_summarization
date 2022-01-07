@@ -50,4 +50,11 @@ public class OnePermHashSig {
         return 0;
     }
 
+    public String toString(){
+        StringBuilder stringBuilder = new StringBuilder("");
+        for (int i = 0; i < sigSize; i++) {
+            stringBuilder.append(sig[i]);
+        }
+        return stringBuilder.toString();
+    }
 }

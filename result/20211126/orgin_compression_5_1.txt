@@ -1,0 +1,134 @@
+/usr/lib/jvm/java-1.8.0-openjdk-amd64/bin/java -javaagent:/home/hallo/idea-IU-212.5457.46/lib/idea_rt.jar=40637:/home/hallo/idea-IU-212.5457.46/bin -Dfile.encoding=UTF-8 -classpath /usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/charsets.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/cldrdata.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/dnsns.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/icedtea-sound.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/jaccess.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/java-atk-wrapper.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/localedata.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/nashorn.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunec.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunjce_provider.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunpkcs11.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/zipfs.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jce.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jfr.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jsse.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/management-agent.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/resources.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/rt.jar:/home/hallo/下载/GraphSummarization/out/production/GraphSummarization:/home/hallo/下载/GraphSummarization/lib/commons-math3-3.6.1.jar:/home/hallo/下载/GraphSummarization/lib/dsiutils-2.2.3.jar:/home/hallo/下载/GraphSummarization/lib/fastutil-6.6.3.jar:/home/hallo/下载/GraphSummarization/lib/javatuples-1.2.jar:/home/hallo/下载/GraphSummarization/lib/jsap-2.1.jar:/home/hallo/下载/GraphSummarization/lib/log4j-1.2.13.jar:/home/hallo/下载/GraphSummarization/lib/log4j-api-2.14.1.jar:/home/hallo/下载/GraphSummarization/lib/log4j-core-2.14.1.jar:/home/hallo/下载/GraphSummarization/lib/slf4j-api-1.7.32.jar:/home/hallo/下载/GraphSummarization/lib/slf4j-log4j12-1.7.32.jar:/home/hallo/下载/GraphSummarization/lib/sux4j-3.2.2.jar:/home/hallo/下载/GraphSummarization/lib/trove4j-3.0.3.jar:/home/hallo/下载/GraphSummarization/lib/webgraph-3.4.3.jar graph_summarization.Main ./data/cnr-2000/cnr-2000-sym 10 1 5
+----------------------------------- Test ALGORITHM ----------------------------------------
+
+------------------------- ITERATION 1
+# Divide Phase
+Max group size equal 8940
+# Merge Phase
+Threshold=0.500000
+@Time: 33.762000 seconds
+# Encode Phase
+@Time: 2.175000 seconds
+# Evaluate Phase
+@Compression: 0.70574
+@nodes: 325557	 ===> 	208877
+@edges: 5565380	 ===> 	1637655(P:1616918, C+:3819, C-:16918)
+
+------------------------- ITERATION 2
+# Divide Phase
+Max group size equal 2952
+# Merge Phase
+Threshold=0.333333
+@Time: 5.049000 seconds
+# Encode Phase
+@Time: 1.807000 seconds
+# Evaluate Phase
+@Compression: 0.84947
+@nodes: 325557	 ===> 	181998
+@edges: 5565380	 ===> 	837773(P:721539, C+:67422, C-:48812)
+
+------------------------- ITERATION 3
+# Divide Phase
+Max group size equal 5001
+# Merge Phase
+Threshold=0.250000
+@Time: 14.207000 seconds
+# Encode Phase
+@Time: 0.989000 seconds
+# Evaluate Phase
+@Compression: 0.86485
+@nodes: 325557	 ===> 	168473
+@edges: 5565380	 ===> 	752164(P:582527, C+:99066, C-:70571)
+
+------------------------- ITERATION 4
+# Divide Phase
+Max group size equal 1953
+# Merge Phase
+Threshold=0.200000
+@Time: 2.368000 seconds
+# Encode Phase
+@Time: 0.803000 seconds
+# Evaluate Phase
+@Compression: 0.87093
+@nodes: 325557	 ===> 	161028
+@edges: 5565380	 ===> 	718342(P:515872, C+:117649, C-:84821)
+
+------------------------- ITERATION 5
+# Divide Phase
+Max group size equal 4213
+# Merge Phase
+Threshold=0.166667
+@Time: 9.287000 seconds
+# Encode Phase
+@Time: 0.890000 seconds
+# Evaluate Phase
+@Compression: 0.87467
+@nodes: 325557	 ===> 	155255
+@edges: 5565380	 ===> 	697518(P:473746, C+:129851, C-:93921)
+
+------------------------- ITERATION 6
+# Divide Phase
+Max group size equal 1713
+# Merge Phase
+Threshold=0.142857
+@Time: 1.761000 seconds
+# Encode Phase
+@Time: 0.807000 seconds
+# Evaluate Phase
+@Compression: 0.87705
+@nodes: 325557	 ===> 	150683
+@edges: 5565380	 ===> 	684247(P:444845, C+:137973, C-:101429)
+
+------------------------- ITERATION 7
+# Divide Phase
+Max group size equal 1490
+# Merge Phase
+Threshold=0.125000
+@Time: 1.509000 seconds
+# Encode Phase
+@Time: 0.803000 seconds
+# Evaluate Phase
+@Compression: 0.87878
+@nodes: 325557	 ===> 	146275
+@edges: 5565380	 ===> 	674659(P:420147, C+:146429, C-:108083)
+
+------------------------- ITERATION 8
+# Divide Phase
+Max group size equal 486
+# Merge Phase
+Threshold=0.111111
+@Time: 0.349000 seconds
+# Encode Phase
+@Time: 1.049000 seconds
+# Evaluate Phase
+@Compression: 0.87920
+@nodes: 325557	 ===> 	143105
+@edges: 5565380	 ===> 	672320(P:402941, C+:152596, C-:116783)
+
+------------------------- ITERATION 9
+# Divide Phase
+Max group size equal 4632
+# Merge Phase
+Threshold=0.100000
+@Time: 11.319000 seconds
+# Encode Phase
+@Time: 0.849000 seconds
+# Evaluate Phase
+@Compression: 0.87930
+@nodes: 325557	 ===> 	140587
+@edges: 5565380	 ===> 	671718(P:390098, C+:159420, C-:122200)
+
+------------------------- ITERATION 10
+# Divide Phase
+Max group size equal 778
+# Merge Phase
+Threshold=0.090909
+@Time: 0.570000 seconds
+# Encode Phase
+@Time: 0.885000 seconds
+# Evaluate Phase
+@Compression: 0.87926
+@nodes: 325557	 ===> 	138292
+@edges: 5565380	 ===> 	671987(P:377491, C+:165577, C-:128919)
+
+Process finished with exit code 0

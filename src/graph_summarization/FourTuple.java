@@ -19,4 +19,8 @@ public class FourTuple implements Comparable<FourTuple> {
             return 0;
         }
     }
+
+    public String toString(){
+        return "<" + this.A + "," + this.B + "> --> " + "(" + this.u + "," + this.v + ")";
+    }
 }

@@ -1,5 +1,6 @@
 package graph_summarization;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
@@ -20,6 +21,9 @@ public class SWeG extends  Summary{
     // 用于分组的二维数组，分别记录每个组的shingle值和第几组
     int[][] group_prop;
 
+    // 用于计算合并的成功率
+    ArrayList<Double> merged_success;
+
     /**
      * 构造函数，继承了Summary父类的构造函数，同时初始化自己的数据结构
      *
@@ -28,6 +32,7 @@ public class SWeG extends  Summary{
      */
     public SWeG(String basename) throws Exception {
         super(basename);
+        merged_success = new ArrayList<>();
     }
 
     /**
@@ -222,6 +227,108 @@ public class SWeG extends  Summary{
     }
 
     /**
+     * 测试函数，用于验证一下想法：
+     *     1.每个组内的合并顶点数量 / 每个小组的顶点数量
+     */
+    public double mergePhase_test(double threshold) {
+        System.out.println("# Merge Phase");
+        System.out.println(String.format("Threshold=%5f", threshold));
+        long startTime = System.currentTimeMillis();
+        int idx = 0;
+        // temp <- F[G]
+        int[] temp = new int[n];
+        for (int i = 0; i < n; i++) temp[i] = F[G[i]];
+
+        HashMap<Integer, ArrayList<Integer>> merged_ = new HashMap<>();
+
+        // 开始遍历每个组
+        for (int i = 0; i < num_groups; i++) {
+            int st_position = group_prop[i][1];
+            int group_size = groupLength(temp, group_prop[i][0], st_position) - 1;
+            // 如果一个组只有一个顶点则直接跳过该组
+            if (group_size < 2) continue;
+
+            // 能成功合并的对数
+            int merged_pairs = 0;
+            if (!merged_.containsKey(group_size)) {
+                merged_.put(group_size, new ArrayList<>());
+            }
+
+            // Q是当前要进行合并的的组
+            int[] Q = new int[group_size];
+            int counter = 0;
+            // 找到在Q组里面的所有超点
+            for (int j = st_position; j < (st_position + group_size); j++) {
+                Q[counter++] = G[j];
+            }
+
+            HashMap<Integer, HashMap<Integer, Integer>> hm = createW(Q, group_size);
+            int initial_size = hm.size();
+            while (hm.size() > 1) {
+                Random rand = new Random();
+                // 从组内随机找到一个超点A
+                int A = rand.nextInt(initial_size);
+                if (hm.get(A) == null)
+                    continue;
+
+                double max = 0;
+                idx = -1;
+                // 遍历组内其他顶点，找到与A的Jaccard Similarity最大的那个顶点
+                for (int j = 0; j < initial_size; j++) {
+                    if (hm.get(j) == null)
+                        continue;
+                    if (j == A) continue;
+                    double jaccard_similarity = computeJacSim(hm.get(A), hm.get(j));
+                    if (jaccard_similarity > max) {
+                        max = jaccard_similarity;
+                        idx = j;
+                    }
+                }
+                if (idx == -1) {
+                    hm.remove(A);
+                    continue;
+                }
+
+                // 这里做了一个交换，目的是把编号较大的顶点合并到编号较小的顶点里面
+                if (Q[A] > Q[idx]) {
+                    int t = A;
+                    A = idx;
+                    idx = t;
+                }
+
+                // 计算两个顶点之间的合并收益
+                double savings = computeSaving(hm.get(A), hm.get(idx), Q[A], Q[idx]);
+                if (savings >= threshold) {
+                    HashMap<Integer, Integer> w_update = updateW(hm.get(A), hm.get(idx));
+                    hm.replace(A, w_update);
+                    hm.remove(idx);
+                    updateSuperNode(Q[A], Q[idx]);
+                    merged_pairs++;
+                } else {
+                    hm.remove(A);
+                }
+            }
+            merged_.get(group_size).add(merged_pairs);
+        }
+
+        double mm = 0.0;
+        int nn = 0;
+        for (Integer length : merged_.keySet()) {
+            int sum = 0;
+            int num = 0;
+            for (Integer w : merged_.get(length)) {
+                sum += w;
+                num++;
+            }
+            mm += sum/(num*length*1.0);
+            nn++;
+        }
+        merged_success.add(mm/nn);
+
+        return (System.currentTimeMillis() - startTime) / 1000.0;
+    }
+
+    /**
      * @param iteration              迭代次数
      * @param print_iteration_offset 每执行多少次迭代就进行一次 encode 和 evaluate 进行结果输出
      */
@@ -233,11 +340,18 @@ public class SWeG extends  Summary{
             double threshold = 1 / ((it + 1) * 1.0);
 //            double Threshold = 0.5 - it * 0.05;
             System.out.println(String.format("@Time: %5f seconds", dividePhase()));
-            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
+//            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
+            System.out.println(String.format("@Time: %5f seconds", mergePhase_test(threshold)));
             if (it % print_iteration_offset == 0) {
                 System.out.println(String.format("@Time: %5f seconds", encodePhase()));
                 evaluatePhase();
             }
+        }
+
+        int i = 1;
+        for (Double m : merged_success) {
+            System.out.println("Iteration " + i + ", average merged success pairs:" + m);
+            i++;
         }
     }
 }

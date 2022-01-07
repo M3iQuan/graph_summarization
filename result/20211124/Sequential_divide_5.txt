@@ -1,0 +1,33 @@
+----------------------------------- Test ALGORITHM ----------------------------------------
+
+------------------------- ITERATION 1
+# Divide Phase
+@Time: 0.673000 seconds
+# Merge Phase
+Threshold=0.500000
+@Time: 5.501000 seconds
+# Encode Phase
+@Time: 1.390000 seconds
+# Evaluate Phase
+@Compression: 0.70678
+@nodes: 325557	 ===> 	209012
+@edges: 5565380	 ===> 	1631864(P:1611344, C+:3979, C-:16541)
+
+Process finished with exit code 0
+
+
+
+----------------------------------- Test ALGORITHM ----------------------------------------
+
+------------------------- ITERATION 1
+# Divide Phase
+@Time: 0.745000 seconds
+# Merge Phase
+Threshold=0.500000
+@Time: 17.036000 seconds
+# Encode Phase
+@Time: 2.014000 seconds
+# Evaluate Phase
+@Compression: 0.71107
+@nodes: 325557	 ===> 	208835
+@edges: 5565380	 ===> 	1608025(P:1586468, C+:3637, C-:17920)

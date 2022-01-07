@@ -27,9 +27,13 @@ public class Main {
 
     public static void main(String[] args) throws Exception{
         // 参数读取,一共有四个 basename iteration print_iteration_offset k(只有LDME算法有)
+        // basename是数据集的名字
         String basename = args[0];
+        // iteration是迭代次数
         int iteration = Integer.parseInt(args[1]);
+        // print_iteration_offset是每迭代多少次就进行一次EdgeEncode，打印一次压缩率
         int print_iteration_offset = Integer.parseInt(args[2]);
+        // signatureLength是LSH的签名长度，即论文里的k
         int signatureLength = Integer.parseInt(args[3]);
 
 //        testGreedy(basename, iteration, print_iteration_offset);

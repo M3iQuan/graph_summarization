@@ -1,0 +1,155 @@
+/usr/lib/jvm/java-1.8.0-openjdk-amd64/bin/java -javaagent:/home/hallo/idea-IU-212.5457.46/lib/idea_rt.jar=35935:/home/hallo/idea-IU-212.5457.46/bin -Dfile.encoding=UTF-8 -classpath /usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/charsets.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/cldrdata.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/dnsns.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/icedtea-sound.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/jaccess.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/java-atk-wrapper.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/localedata.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/nashorn.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunec.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunjce_provider.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/sunpkcs11.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/ext/zipfs.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jce.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jfr.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/jsse.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/management-agent.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/resources.jar:/usr/lib/jvm/java-1.8.0-openjdk-amd64/jre/lib/rt.jar:/home/hallo/下载/GraphSummarization/out/production/GraphSummarization:/home/hallo/下载/GraphSummarization/lib/commons-math3-3.6.1.jar:/home/hallo/下载/GraphSummarization/lib/dsiutils-2.2.3.jar:/home/hallo/下载/GraphSummarization/lib/fastutil-6.6.3.jar:/home/hallo/下载/GraphSummarization/lib/javatuples-1.2.jar:/home/hallo/下载/GraphSummarization/lib/jsap-2.1.jar:/home/hallo/下载/GraphSummarization/lib/log4j-1.2.13.jar:/home/hallo/下载/GraphSummarization/lib/log4j-api-2.14.1.jar:/home/hallo/下载/GraphSummarization/lib/log4j-core-2.14.1.jar:/home/hallo/下载/GraphSummarization/lib/slf4j-api-1.7.32.jar:/home/hallo/下载/GraphSummarization/lib/slf4j-log4j12-1.7.32.jar:/home/hallo/下载/GraphSummarization/lib/sux4j-3.2.2.jar:/home/hallo/下载/GraphSummarization/lib/trove4j-3.0.3.jar:/home/hallo/下载/GraphSummarization/lib/webgraph-3.4.3.jar graph_summarization.Main ./data/cnr-2000/cnr-2000-sym 10 1 5
+----------------------------------- ORIGIN ALGORITHM ---------------------------------------
+
+------------------------- ITERATION 1
+# Divide Phase
+Origin group length:3177 divide into group:5,665,2060,252,128,55,10,
+Origin group length:9389 divide into group:3,8666,660,30,2,23,4,
+Origin group length:1305 divide into group:1305,
+Origin group length:1022 divide into group:1022,
+Origin group length:1305 divide into group:1305,
+Origin group length:1100 divide into group:1099,
+Origin group length:1148 divide into group:1148,
+Origin group length:1306 divide into group:1306,
+Origin group length:2022 divide into group:2022,
+Origin group length:2143 divide into group:226,1780,114,23,
+@Time: 0.829000 seconds
+# Merge Phase
+Threshold=0.500000
+total_test:170918, merged_num:116266(0.6802443276893013), code0_equal:113204(0.9736638398155952), code0_1_equal:112873(0.970816919821788), code0_1_not:331(0.002846919993807304), code0_not:3062(0.02633616018440473), jaccard similarity fails:52405(0.3066090171895295), without jaccard similarity:2247(0.013146655121169215 )
+@Time: 38.707000 seconds
+@Time: 2.076000 seconds
+# Evaluate Phase
+@Compression: 0.70941
+@nodes: 325557	 ===> 	209291
+@edges: 5565380	 ===> 	1617246(P:1596604, C+:3855, C-:16787)
+
+------------------------- ITERATION 2
+# Divide Phase
+Origin group length:1285 divide into group:178,586,165,169,112,31,25,16,2,
+Origin group length:7046 divide into group:6569,455,17,2,
+@Time: 0.501000 seconds
+# Merge Phase
+Threshold=0.333333
+total_test:55715, merged_num:27388(0.4915731849591672), code0_equal:17087(0.6238863735942749), code0_1_equal:16773(0.6124214984664816), code0_1_not:314(0.011464875127793194), code0_not:10301(0.37611362640572515), jaccard similarity fails:26072(0.46795297496185945), without jaccard similarity:2255(0.040473840078973346 )
+@Time: 23.377000 seconds
+@Time: 1.894000 seconds
+# Evaluate Phase
+@Compression: 0.84913
+@nodes: 325557	 ===> 	181903
+@edges: 5565380	 ===> 	839643(P:721099, C+:68257, C-:50287)
+
+------------------------- ITERATION 3
+# Divide Phase
+Origin group length:3491 divide into group:2097,267,1073,49,4,
+Origin group length:1266 divide into group:130,175,219,286,221,113,57,26,23,12,2,
+@Time: 0.533000 seconds
+# Merge Phase
+Threshold=0.250000
+total_test:34798, merged_num:13535(0.3889591355825047), code0_equal:7107(0.5250831178426302), code0_1_equal:6853(0.5063169560398966), code0_1_not:254(0.018766161802733654), code0_not:6428(0.47491688215736977), jaccard similarity fails:19169(0.5508649922409334), without jaccard similarity:2094(0.060175872176561875 )
+@Time: 3.885000 seconds
+@Time: 1.053000 seconds
+# Evaluate Phase
+@Compression: 0.86605
+@nodes: 325557	 ===> 	168368
+@edges: 5565380	 ===> 	745507(P:574949, C+:99917, C-:70641)
+
+------------------------- ITERATION 4
+# Divide Phase
+Origin group length:1486 divide into group:493,120,819,34,18,
+@Time: 0.460000 seconds
+# Merge Phase
+Threshold=0.200000
+total_test:25455, merged_num:7386(0.2901591043017089), code0_equal:3578(0.4844300027078256), code0_1_equal:3406(0.4611427024099648), code0_1_not:172(0.023287300297860816), code0_not:3808(0.5155699972921743), jaccard similarity fails:15930(0.6258102533883324), without jaccard similarity:2139(0.08403064230995876 )
+@Time: 1.054000 seconds
+@Time: 1.209000 seconds
+# Evaluate Phase
+@Compression: 0.87227
+@nodes: 325557	 ===> 	160982
+@edges: 5565380	 ===> 	710850(P:511616, C+:116996, C-:82238)
+
+------------------------- ITERATION 5
+# Divide Phase
+Origin group length:2022 divide into group:256,90,1553,71,46,2,2,
+@Time: 0.478000 seconds
+# Merge Phase
+Threshold=0.166667
+total_test:24491, merged_num:5809(0.23718917153239966), code0_equal:2739(0.4715097262867963), code0_1_equal:2589(0.445687725942503), code0_1_not:150(0.025822000344293338), code0_not:3070(0.5284902737132037), jaccard similarity fails:16733(0.683230574496754), without jaccard similarity:1949(0.07958025397084643 )
+@Time: 1.824000 seconds
+@Time: 1.097000 seconds
+# Evaluate Phase
+@Compression: 0.87606
+@nodes: 325557	 ===> 	155173
+@edges: 5565380	 ===> 	689794(P:470353, C+:128720, C-:90721)
+
+------------------------- ITERATION 6
+# Divide Phase
+Origin group length:1444 divide into group:66,76,1224,48,28,2,
+@Time: 0.454000 seconds
+# Merge Phase
+Threshold=0.142857
+total_test:21501, merged_num:4537(0.2110134412352914), code0_equal:2026(0.4465505840864007), code0_1_equal:1864(0.41084417015649105), code0_1_not:162(0.035706413929909635), code0_not:2511(0.5534494159135993), jaccard similarity fails:15038(0.699409329798614), without jaccard similarity:1926(0.0895772289660946 )
+@Time: 1.190000 seconds
+@Time: 1.490000 seconds
+# Evaluate Phase
+@Compression: 0.87839
+@nodes: 325557	 ===> 	150636
+@edges: 5565380	 ===> 	676802(P:441942, C+:137023, C-:97837)
+
+------------------------- ITERATION 7
+# Divide Phase
+Origin group length:4419 divide into group:59,89,3831,283,125,9,18,3,
+@Time: 0.463000 seconds
+# Merge Phase
+Threshold=0.125000
+total_test:21648, merged_num:4153(0.1918422025129342), code0_equal:2115(0.509270406934746), code0_1_equal:1960(0.47194798940524924), code0_1_not:155(0.03732241752949675), code0_not:2038(0.49072959306525404), jaccard similarity fails:15612(0.7211751662971175), without jaccard similarity:1883(0.08698263118994826 )
+@Time: 7.555000 seconds
+@Time: 0.841000 seconds
+# Evaluate Phase
+@Compression: 0.88027
+@nodes: 325557	 ===> 	146483
+@edges: 5565380	 ===> 	666361(P:419275, C+:144866, C-:102220)
+
+------------------------- ITERATION 8
+# Divide Phase
+Origin group length:3653 divide into group:22,32,3244,211,116,5,19,2,
+@Time: 0.511000 seconds
+# Merge Phase
+Threshold=0.111111
+total_test:19385, merged_num:3184(0.16425070931132318), code0_equal:1446(0.45414572864321606), code0_1_equal:1333(0.41865577889447236), code0_1_not:113(0.03548994974874372), code0_not:1738(0.5458542713567839), jaccard similarity fails:14413(0.7435130255352076), without jaccard similarity:1788(0.09223626515346918 )
+@Time: 5.752000 seconds
+@Time: 1.002000 seconds
+# Evaluate Phase
+@Compression: 0.88088
+@nodes: 325557	 ===> 	143299
+@edges: 5565380	 ===> 	662950(P:402206, C+:151746, C-:108998)
+
+------------------------- ITERATION 9
+# Divide Phase
+Origin group length:4399 divide into group:22,32,3919,263,138,8,2,11,3,
+@Time: 0.456000 seconds
+# Merge Phase
+Threshold=0.100000
+total_test:20225, merged_num:2843(0.14056860321384426), code0_equal:1334(0.46922265212803377), code0_1_equal:1211(0.42595849454801266), code0_1_not:123(0.043264157580021105), code0_not:1509(0.5307773478719663), jaccard similarity fails:15607(0.7716687268232386), without jaccard similarity:1775(0.08776266996291718 )
+@Time: 8.615000 seconds
+@Time: 1.557000 seconds
+# Evaluate Phase
+@Compression: 0.88155
+@nodes: 325557	 ===> 	140456
+@edges: 5565380	 ===> 	659224(P:387669, C+:157329, C-:114226)
+
+------------------------- ITERATION 10
+# Divide Phase
+Origin group length:3043 divide into group:12,19,2715,210,76,8,2,
+@Time: 0.462000 seconds
+# Merge Phase
+Threshold=0.090909
+total_test:18000, merged_num:2396(0.13311111111111112), code0_equal:1020(0.4257095158597663), code0_1_equal:891(0.3718697829716194), code0_1_not:129(0.05383973288814691), code0_not:1376(0.5742904841402338), jaccard similarity fails:13786(0.7658888888888888), without jaccard similarity:1818(0.101 )
+@Time: 3.831000 seconds
+@Time: 1.372000 seconds
+# Evaluate Phase
+@Compression: 0.88212
+@nodes: 325557	 ===> 	138060
+@edges: 5565380	 ===> 	656057(P:375445, C+:162207, C-:118405)
+
+Process finished with exit code 0

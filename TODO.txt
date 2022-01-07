@@ -18,3 +18,16 @@
 10/31
 1. 整理了Greedy算法，但还是存在一些问题：
    即当threshold=0时，继续合并顶点可能会导致压缩率下降，目前还不知道问题出现在哪里
+
+11/1
+1. 探索Graph Summarization中saving的意义，即合并一个顶点对能对压缩率提升多少？能否有公式推理证明？
+
+
+11/25
+1. 重新实现了一下分组函数和合并函数 dividePhase_new(), mergePhase_new(), 和 mergePhaseSequentialSplit()
+
+11/28
+1. sequential和hierarchical实现的方式都太简单了，没什么效果
+
+12/13
+1. 把数量超过1000的组内顶点都记录下来，然后再重新进行划分，看看具体有什么不同！

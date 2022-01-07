@@ -1,5 +1,6 @@
 package graph_summarization;
 
+import com.sun.org.apache.xerces.internal.impl.dtd.models.CMNode;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.hash.TIntHashSet;
@@ -20,6 +21,9 @@ public class Summary {
     // 记录同属一个超点的下一个顶点是哪个，就像是链表的next指针，如 I[3]=9 表示和顶点3同处一个超点的下一个顶点是9
     int[] J;
 
+    // 记录超点是否是存在自环边
+    int[] self_loop;
+
     // 用于记录每个超点的大小
     int[] supernode_sizes;
 
@@ -28,6 +32,10 @@ public class Summary {
     ArrayList<Pair<Integer, Integer>> P;
     TIntArrayList Cp_0, Cp_1;
     TIntArrayList Cm_0, Cm_1;
+
+    Map<Integer, List<Integer>> P_neighbors;
+    Map<Integer, List<Integer>> Cp_neighbors;
+    Map<Integer, List<Integer>> Cm_neighbors;
 
     /**
      * 构造函数，用于初始化一些共同的结构
@@ -44,11 +52,14 @@ public class Summary {
         I = new int[n];
         J = new int[n];
 
+        self_loop = new int[n];
+
         // 初始化每个顶点为一个超点，即分别设置 S[i]=i, I[i]=i 和 J[i]=i
         for (int i = 0; i < n; i++) {
             S[i] = i;  //Initial each node as a supernode
             I[i] = i;
             J[i] = -1;
+            self_loop[i] = 0;
         }
     }
 
@@ -88,8 +99,8 @@ public class Summary {
     /**
      * 恢复超点，即计算超点包含哪些顶点
      *
-     * @param super_node_id
-     * @return
+     * @param super_node_id 超点的编号
+     * @return 一个顶点数组
      */
     protected int[] recoverSuperNode(int super_node_id) {
         //Extracting the nodes belong to supernode key and return it (Arr)
@@ -133,21 +144,35 @@ public class Summary {
     }
 
     /**
+     * 计算一个组内所有超点的w，每个顶点的w都是<node_id, num>，返回的是 <index, w> 即顶点在组内的index
+     * @param Q 一个包含多个顶点的小组
+     * @return 返回一个HashMap
+     */
+    protected HashMap<Integer, HashMap<Integer, Integer>> createW(List<Integer> Q) {
+        HashMap<Integer, HashMap<Integer, Integer>> w_All = new HashMap<>();
+        int group_size = Q.size();
+        for (int i = 0; i < group_size; i++) {
+            w_All.put(i, createSingleW(Q.get(i)));
+        }
+        return w_All;
+    }
+
+    /**
      * 计算一个超点的w,具体是 <node_id, num>，即记录与超点存在边相连的顶点id以及边数量
      *
      * @param super_node_id 超点编号
-     * @return
+     * @return 返回的是一个Map, 记录的是<node_id, num>
      */
-    protected HashMap<Integer, Integer> createW(int super_node_id) {
-        HashMap<Integer, Integer> w_Single = new HashMap<Integer, Integer>();
+    protected HashMap<Integer, Integer> createSingleW(int super_node_id) {
+        HashMap<Integer, Integer> w_Single = new HashMap<>();
         int[] Nodes = recoverSuperNode(super_node_id);
-        for (int j = 0; j < Nodes.length; j++) {
-            int[] Neigh = Gr.successorArray(Nodes[j]);
-            for (int k = 0; k < Neigh.length; k++) {
-                if (w_Single.containsKey(Neigh[k]))
-                    w_Single.put(Neigh[k], w_Single.get(Neigh[k]) + 1);
+        for (int node : Nodes) {
+            int[] Neigh = Gr.successorArray(node);
+            for (int i : Neigh) {
+                if (w_Single.containsKey(i))
+                    w_Single.put(i, w_Single.get(i) + 1);
                 else
-                    w_Single.put(Neigh[k], 1);
+                    w_Single.put(i, 1);
             }
         }
         return w_Single;
@@ -196,8 +221,9 @@ public class Summary {
                     down = down + w_A.get(key);
                     up = up + w_B.get(key);
                 }
-            } else
+            } else {
                 down = down + w_A.get(key);
+            }
         }
         for (Integer key : w_B.keySet()) {
             if (!(w_A.containsKey(key))) {
@@ -358,6 +384,7 @@ public class Summary {
                 candidate_spA.put(S[key], candidate_spA.get(S[key]) + w_A.get(key));
             }
         }
+        if(candidate_spA.containsKey(supernode_A)) candidate_spA.put(supernode_A, candidate_spA.get(supernode_A) / 2);
 
         // 遍历w_B得到与超点B存在边相连的顶点u以及边数量num
         for (Integer key : w_B.keySet()) {
@@ -371,6 +398,7 @@ public class Summary {
                 candidate_spB.put(S[key], w_B.get(key));
             }
         }
+        if(candidate_spB.containsKey(supernode_B)) candidate_spB.put(supernode_B, candidate_spB.get(supernode_B) / 2);
 
         // 开始计算超点A，B以及合并后超点的代价 cost_A, cost_B 和 cost_AUnionB
         for (Integer key : candidate_spA.keySet()) {
@@ -535,7 +563,7 @@ public class Summary {
                         for (int b = 0; b < in_B.size(); b++) {
                             Pair<Integer, Integer> edge = new Pair(in_A.get(a), in_B.get(b));
                             // edge<a,b> do not exist truly, but we need to store it to the C-
-                            if (!((HashSet<Pair<Integer, Integer>>) edges_list[B]).contains(edge)) {
+                            if (!edges_list[B].contains(edge)) {
                                 // Cm_0 store the source node of edge, Cm_1 store the target node of edge
                                 Cm_0.add(in_A.get(a));
                                 Cm_1.add(in_B.get(b));
@@ -555,7 +583,7 @@ public class Summary {
      * (2)接着对超边进行编码
      */
     public double encodePhase_new(){
-        System.out.println("# Encode Phase");
+//        System.out.println("# Encode Phase");
         long startTime = System.currentTimeMillis();
         supernode_sizes = new int[n];
         sn_to_n = new HashMap<>();
@@ -611,7 +639,7 @@ public class Summary {
 
                     // 不形成超边
                     if (edges_set.size() <= edges_compare_cond) {
-                        if (prev_A != prev_B) edges_compressed += edges_set.size();
+//                        if (prev_A != prev_B) edges_compressed += edges_set.size();
                         // 每条边加入到C+集合
                         for (Pair<Integer, Integer> edge : edges_set) {
                             Cp_0.add(edge.getValue0());
@@ -620,7 +648,7 @@ public class Summary {
                     }
                     // 行成超边
                     else {
-                        if (prev_A != prev_B) edges_compressed += supernode_sizes[prev_A] * supernode_sizes[prev_B] - edges_set.size() + 1;
+//                        if (prev_A != prev_B) edges_compressed += supernode_sizes[prev_A] * supernode_sizes[prev_B] - edges_set.size() + 1;
 
                         // 加入超边 <prev_A, prev_B>
                         P.add(new Pair(prev_A, prev_B));
@@ -651,6 +679,381 @@ public class Summary {
     }
 
     /**
+     * 新的编码函数，与之前不同在于对自环进行了修改
+     * @return
+     */
+    public double encodePhase_new2(){
+//        System.out.println("# Encode Phase");
+        long startTime = System.currentTimeMillis();
+        supernode_sizes = new int[n];
+        sn_to_n = new HashMap<>();
+        P = new ArrayList<>();
+        Cp_0 = new TIntArrayList();
+        Cp_1 = new TIntArrayList();
+        Cm_0 = new TIntArrayList();
+        Cm_1 = new TIntArrayList();
+        int edges_compressed = 0;
+        int supernode_count = 0;
+        int[] S_copy = Arrays.copyOf(S, S.length);
+
+        // 对顶点进行重新编号
+//        for (int i = 0; i < n; i++) {
+//            if (I[i] != -1) {
+//                int[] nodes_inside = recoverSuperNode(i);
+//                TIntArrayList nodes_inside_list = new TIntArrayList();
+//                supernode_sizes[supernode_count] = nodes_inside.length;
+//                for (int j = 0; j < nodes_inside.length; j++) {
+//                    nodes_inside_list.add(nodes_inside[j]);
+//                    S_copy[nodes_inside[j]] = supernode_count;
+//                }
+//                sn_to_n.put(supernode_count, nodes_inside_list);
+//                supernode_count++;
+//            }
+//        }
+
+        // 把每条边按他们的所属的超边组合起来
+        LinkedList<FourTuple> edges_encoding = new LinkedList<FourTuple>();
+        for (int node = 0; node < n; node++) {
+            for(int neighbour : Gr.successorArray(node)) {
+                if(node <= neighbour){
+                    if (S[node] <= S[neighbour]) {
+//                        edges_encoding.add(new FourTuple(S_copy[node], S_copy[neighbour], node, neighbour));
+                        edges_encoding.add(new FourTuple(S[node], S[neighbour], node, neighbour));
+                    }else{
+//                        edges_encoding.add(new FourTuple(S_copy[neighbour], S_copy[node], neighbour, node));
+                        edges_encoding.add(new FourTuple(S[neighbour], S[node], neighbour, node));
+                    }
+                }
+            }
+        }
+        Collections.sort(edges_encoding);
+
+        int prev_A = edges_encoding.get(0).A;
+        int prev_B = edges_encoding.get(0).B;
+        HashSet<Pair<Integer, Integer>> edges_set = new HashSet<Pair<Integer, Integer>>();
+        Iterator<FourTuple> iter = edges_encoding.iterator();
+        while (!edges_encoding.isEmpty()) {
+            FourTuple e_encoding = edges_encoding.pop();
+            int A = e_encoding.A;
+            int B = e_encoding.B;
+
+            // 移动到新的顶点对，即已经得到前一个顶点对<prev_A, prev_B>的所有边信息，可以开始encode顶点对 <prev_A, prev_B>的超边信息
+            if ((A != prev_A || B != prev_B)) { // we've moved onto a different pair of supernodes A and B
+                if (prev_A <= prev_B) {
+                    double edges_compare_cond = 0;
+                    if (prev_A == prev_B) {
+                        edges_compare_cond = (superNodeLength(prev_A) * (superNodeLength(prev_A) - 1)) / 4.0;
+//                        edges_compare_cond = supernode_sizes[prev_A] * (supernode_sizes[prev_A] - 1) / 4.0;
+                    } else {
+                        edges_compare_cond = (superNodeLength(prev_A) * superNodeLength(prev_B)) / 2.0;
+//                        edges_compare_cond = (supernode_sizes[prev_A] * supernode_sizes[prev_B]) / 2.0;
+                    }
+
+                    // 不形成超边
+                    if (edges_set.size() <= edges_compare_cond) {
+//                        if (prev_A != prev_B) edges_compressed += edges_set.size();
+                        // 每条边加入到C+集合
+                        for (Pair<Integer, Integer> edge : edges_set) {
+                            if (edge.getValue0() <= edge.getValue1()) {
+                                Cp_0.add(edge.getValue0());
+                                Cp_1.add(edge.getValue1());
+                            }else{
+                                Cp_0.add(edge.getValue1());
+                                Cp_1.add(edge.getValue0());
+                            }
+                        }
+                    }
+                    // 行成超边
+                    else {
+//                        if (prev_A != prev_B) edges_compressed += supernode_sizes[prev_A] * supernode_sizes[prev_B] - edges_set.size() + 1;
+
+                        // 加入超边 <prev_A, prev_B>
+                        P.add(new Pair(prev_A, prev_B));
+
+                        if (prev_A == prev_B) {
+                            int[] in_A = recoverSuperNode(prev_A);
+                            for (int a = 0; a < in_A.length; a++) {
+                                for (int b = a + 1; b < in_A.length; b++) {
+                                    Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
+                                    Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
+                                    if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                        if (in_A[a] <= in_A[b]) {
+                                            Cm_0.add(in_A[a]);
+                                            Cm_1.add(in_A[b]);
+                                        } else {
+                                            Cm_0.add(in_A[b]);
+                                            Cm_1.add(in_A[a]);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            int[] in_A = recoverSuperNode(prev_A);
+                            int[] in_B = recoverSuperNode(prev_B);
+                            for (int a = 0; a < in_A.length; a++) {
+                                for (int b = 0; b < in_B.length; b++) {
+                                    Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
+                                    Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
+                                    if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                        if (in_A[a] <= in_B[b]) {
+                                            Cm_0.add(in_A[a]);
+                                            Cm_1.add(in_B[b]);
+                                        } else {
+                                            Cm_0.add(in_B[b]);
+                                            Cm_1.add(in_A[a]);
+                                        }
+                                    }  // if
+                                }  // for b
+                            } // for a
+                        } // else
+                    } // else
+                } // if
+                edges_set = new HashSet<Pair<Integer, Integer>>();
+            } // if
+            edges_set.add(new Pair(e_encoding.u, e_encoding.v));
+            prev_A = A;
+            prev_B = B;
+        } // for edges encoding
+
+        // 处理最后一对超边
+        if (!edges_set.isEmpty()) {
+            if(prev_A <= prev_B){
+                double edges_compare_cond = 0;
+                if (prev_A == prev_B) {
+                    edges_compare_cond = (superNodeLength(prev_A) * (superNodeLength(prev_A) - 1)) / 4.0;
+                } else {
+                    edges_compare_cond = (superNodeLength(prev_A) * superNodeLength(prev_B)) / 2.0;
+                }
+                // 不形成超边
+                if (edges_set.size() <= edges_compare_cond) {
+                    // 每条边加入到C+集合
+                    for (Pair<Integer, Integer> edge : edges_set) {
+                        if (edge.getValue0() <= edge.getValue1()) {
+                            Cp_0.add(edge.getValue0());
+                            Cp_1.add(edge.getValue1());
+                        }else{
+                            Cp_0.add(edge.getValue1());
+                            Cp_1.add(edge.getValue0());
+                        }
+                    }
+                }
+                // 行成超边
+                else {
+                    // 加入超边 <prev_A, prev_B>
+                    P.add(new Pair(prev_A, prev_B));
+                    if (prev_A == prev_B) {
+                        int[] in_A = recoverSuperNode(prev_A);
+                        for (int a = 0; a < in_A.length; a++) {
+                            for (int b = a + 1; b < in_A.length; b++) {
+                                Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
+                                Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
+                                if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                    if (in_A[a] <= in_A[b]) {
+                                        Cm_0.add(in_A[a]);
+                                        Cm_1.add(in_A[b]);
+                                    } else {
+                                        Cm_0.add(in_A[b]);
+                                        Cm_1.add(in_A[a]);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        int[] in_A = recoverSuperNode(prev_A);
+                        int[] in_B = recoverSuperNode(prev_B);
+                        for (int a = 0; a < in_A.length; a++) {
+                            for (int b = 0; b < in_B.length; b++) {
+                                Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
+                                Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
+                                if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                    if (in_A[a] <= in_B[b]) {
+                                        Cm_0.add(in_A[a]);
+                                        Cm_1.add(in_B[b]);
+                                    } else {
+                                        Cm_0.add(in_B[b]);
+                                        Cm_1.add(in_A[a]);
+                                    }
+                                }  // if
+                            }  // for b
+                        } // for a
+                    } // else
+                } // else
+            } // if
+        }
+
+        return (System.currentTimeMillis() - startTime) / 1000.0;
+    }
+
+    /**
+     * 新的编码函数，与之前不同在与对自环进行了修改，并且用了新的结构来存储边结构，能够用于后续的恢复邻居
+     * @return
+     */
+    public double encodePhase_test(){
+        long startTime = System.currentTimeMillis();
+
+        P_neighbors = new HashMap<>();
+        Cp_neighbors = new HashMap<>();
+        Cm_neighbors = new HashMap<>();
+
+        LinkedList<FourTuple> edges_encoding = new LinkedList<>();
+        for (int node = 0; node < n; node++) {
+            for(int neighbor : Gr.successorArray(node)){
+                if (node <= neighbor) {
+                    if(S[node] <= S[neighbor]){
+                        edges_encoding.add(new FourTuple(S[node], S[neighbor], node, neighbor));
+                    }else{
+                        edges_encoding.add(new FourTuple(S[neighbor], S[node], neighbor, node));
+                    }
+                }
+            }
+        }
+        Collections.sort(edges_encoding);
+
+        int prev_A = edges_encoding.get(0).A;
+        int prev_B = edges_encoding.get(0).B;
+        HashSet<Pair<Integer, Integer>> edges_set = new HashSet<>();
+        while (!edges_encoding.isEmpty()) {
+            FourTuple e_encoding = edges_encoding.pop();
+            int A = e_encoding.A;
+            int B = e_encoding.B;
+            if ((A != prev_A || B != prev_B)) {
+                if (prev_A <= prev_B) {
+                    double edges_compare_cond = 0;
+                    if(prev_A == prev_B){
+                        edges_compare_cond = (superNodeLength(prev_A) * (superNodeLength(prev_A)-1)) / 4.0;
+                    }else{
+                        edges_compare_cond = (superNodeLength(prev_A) * superNodeLength(prev_B)) / 2.0;
+                    }
+
+                    // 不形成超边
+                    if(edges_set.size() <= edges_compare_cond){
+                        for(Pair<Integer, Integer> edge : edges_set){
+                            if(!Cp_neighbors.containsKey(edge.getValue0()))
+                                Cp_neighbors.put(edge.getValue0(), new ArrayList<>());
+                            if(!Cp_neighbors.containsKey(edge.getValue1()))
+                                Cp_neighbors.put(edge.getValue1(), new ArrayList<>());
+                            Cp_neighbors.get(edge.getValue0()).add(edge.getValue1());
+                            Cp_neighbors.get(edge.getValue1()).add(edge.getValue0());
+                        }
+                    }else{
+                        if(!P_neighbors.containsKey(prev_A))
+                            P_neighbors.put(prev_A, new ArrayList<>());
+                        if(!P_neighbors.containsKey(prev_B))
+                            P_neighbors.put(prev_B, new ArrayList<>());
+                        P_neighbors.get(prev_A).add(prev_B);
+                        P_neighbors.get(prev_B).add(prev_A);
+                        if(prev_A == prev_B){
+                            self_loop[prev_A] = 1;
+                            int[] in_A = recoverSuperNode(prev_A);
+                            for (int a = 0; a < in_A.length; a++) {
+                                for (int b = a + 1; b < in_A.length; b++) {
+                                    Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
+                                    Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
+                                    if( !edges_set.contains(edge_1) && !edges_set.contains(edge_2) ){
+                                        if(!Cm_neighbors.containsKey(in_A[a]))
+                                            Cm_neighbors.put(in_A[a], new ArrayList<>());
+                                        if(!Cm_neighbors.containsKey(in_A[b]))
+                                            Cm_neighbors.put(in_A[b], new ArrayList<>());
+                                        Cm_neighbors.get(in_A[a]).add(in_A[b]);
+                                        Cm_neighbors.get(in_A[b]).add(in_A[a]);
+                                    }
+                                }
+                            }
+                        }else{
+                            int[] in_A = recoverSuperNode(prev_A);
+                            int[] in_B = recoverSuperNode(prev_B);
+                            for (int a = 0; a < in_A.length; a++) {
+                                for (int b = 0; b < in_B.length; b++) {
+                                    Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
+                                    Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
+                                    if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                        if (!Cm_neighbors.containsKey(in_A[a]))
+                                            Cm_neighbors.put(in_A[a], new ArrayList<>());
+                                        if (!Cm_neighbors.containsKey(in_B[b]))
+                                            Cm_neighbors.put(in_B[b], new ArrayList<>());
+                                        Cm_neighbors.get(in_A[a]).add(in_B[b]);
+                                        Cm_neighbors.get(in_B[b]).add(in_A[a]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                edges_set = new HashSet<>();
+            }
+            edges_set.add(new Pair(e_encoding.u, e_encoding.v));
+            prev_A = A;
+            prev_B = B;
+        }
+
+        if (edges_set.size() != 0) {
+            if (prev_A <= prev_B) {
+                double edges_compare_cond = 0;
+                if(prev_A == prev_B){
+                    edges_compare_cond = (superNodeLength(prev_A) * (superNodeLength(prev_A)-1)) / 4.0;
+                }else{
+                    edges_compare_cond = (superNodeLength(prev_A) * superNodeLength(prev_B)) / 2.0;
+                }
+
+                // 不形成超边
+                if(edges_set.size() <= edges_compare_cond){
+                    for(Pair<Integer, Integer> edge : edges_set){
+                        if(!Cp_neighbors.containsKey(edge.getValue0()))
+                            Cp_neighbors.put(edge.getValue0(), new ArrayList<>());
+                        if(!Cp_neighbors.containsKey(edge.getValue1()))
+                            Cp_neighbors.put(edge.getValue1(), new ArrayList<>());
+                        Cp_neighbors.get(edge.getValue0()).add(edge.getValue1());
+                        Cp_neighbors.get(edge.getValue1()).add(edge.getValue0());
+                    }
+                }else{
+                    if(!P_neighbors.containsKey(prev_A))
+                        P_neighbors.put(prev_A, new ArrayList<>());
+                    if(!P_neighbors.containsKey(prev_B))
+                        P_neighbors.put(prev_B, new ArrayList<>());
+                    P_neighbors.get(prev_A).add(prev_B);
+                    P_neighbors.get(prev_B).add(prev_A);
+                    if(prev_A == prev_B){
+                        self_loop[prev_A] = 1;
+                        int[] in_A = recoverSuperNode(prev_A);
+                        for (int a = 0; a < in_A.length; a++) {
+                            for (int b = a + 1; b < in_A.length; b++) {
+                                Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
+                                Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
+                                if( !edges_set.contains(edge_1) && !edges_set.contains(edge_2) ){
+                                    if(!Cm_neighbors.containsKey(in_A[a]))
+                                        Cm_neighbors.put(in_A[a], new ArrayList<>());
+                                    if(!Cm_neighbors.containsKey(in_A[b]))
+                                        Cm_neighbors.put(in_A[b], new ArrayList<>());
+                                    Cm_neighbors.get(in_A[a]).add(in_A[b]);
+                                    Cm_neighbors.get(in_A[b]).add(in_A[a]);
+                                }
+                            }
+                        }
+                    }else{
+                        int[] in_A = recoverSuperNode(prev_A);
+                        int[] in_B = recoverSuperNode(prev_B);
+                        for (int a = 0; a < in_A.length; a++) {
+                            for (int b = 0; b < in_B.length; b++) {
+                                Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
+                                Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
+                                if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                    if (!Cm_neighbors.containsKey(in_A[a]))
+                                        Cm_neighbors.put(in_A[a], new ArrayList<>());
+                                    if (!Cm_neighbors.containsKey(in_B[b]))
+                                        Cm_neighbors.put(in_B[b], new ArrayList<>());
+                                    Cm_neighbors.get(in_A[a]).add(in_B[b]);
+                                    Cm_neighbors.get(in_B[b]).add(in_A[a]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return (System.currentTimeMillis() - startTime) / 1000.0;
+    }
+
+    /**
      * 评价函数，用于评估压缩性能，输出格式为：
      * @Compression: 0.xxxxx
      * @nodes: xxxxx ===> xxxxx
@@ -667,6 +1070,146 @@ public class Summary {
         System.out.println(String.format("@Compression: %.5f", (1 - (P.size() + Cp_0.size() + Cm_0.size() * 1.0) / (Gr.numArcs() * 1.0))));
         System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
         System.out.println("@edges: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
+    }
+
+    public void evaluatePhase_test(){
+        System.out.println("# Evaluate Phase");
+        int sp_num = 0;
+        for (int i = 0; i < n; i++) {
+            if(I[i] != -1) sp_num++;
+        }
+
+        int P_num = 0;
+        for (Integer key : P_neighbors.keySet()) {
+            P_num += P_neighbors.get(key).size();
+        }
+
+        int Cp_num = 0;
+        for (Integer key : Cp_neighbors.keySet()) {
+            Cp_num += Cp_neighbors.get(key).size();
+        }
+
+        int Cm_num = 0;
+        for (Integer key : Cm_neighbors.keySet()) {
+            Cm_num += Cm_neighbors.get(key).size();
+        }
+
+        int total = 0;
+        for (int i = 0; i < n; i++) {
+            int[] neighbors = Gr.successorArray(i);
+            total += neighbors.length;
+        }
+
+        System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
+        System.out.println("@before: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
+        System.out.println("@after: " + total + "\t ===> \t" + (P_num + Cp_num + Cm_num) + String.format("(P:%d, C+:%d, C-:%d)", P_num, Cp_num, Cm_num));
+        System.out.println(String.format("@Compression: %f(before) \t %f(after)", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total)));
+    }
+    /**
+     * 计算当前的压缩率
+     * @return 压缩后的边数量
+     */
+    public int calculateCompression(){
+        int edges = P.size() + Cp_0.size() + Cm_0.size();
+//        System.out.println("Edges:" + edges  + ",Compression:" + (1 - (edges*1.0) / Gr.numArcs()));
+        return edges;
+    }
+
+    /**
+     * 通过Summary Graph来恢复某个点u的邻居集合
+     * 对应使用了数据结构 P_neighbors, Cp_neighbors 和 Cm_neighbors
+     * @param u 顶点u的编号
+     * @return
+     */
+    public Set<Integer> recoverNeighbors_test(int u) {
+        Set<Integer> neighbors = new TreeSet<>();
+        // 恢复顶点u的所有顶点
+        int A = S[u];
+        int[] in_A = recoverSuperNode(A);
+
+        // 处理自环边
+        if(self_loop[u] == 1){
+            for (int node : in_A) {
+                if(node == u) continue;
+                neighbors.add(node);
+            }
+        }
+
+        // 处理超边邻居
+        if(P_neighbors.containsKey(A)) {
+            for (Integer B : P_neighbors.get(A)) {
+                int[] in_B = recoverSuperNode(B);
+                for (int node : in_B) {
+                    if (node == u) continue;
+                    neighbors.add(node);
+                }
+            }
+        }
+
+        // 处理Cplus邻居
+        if(Cp_neighbors.containsKey(u)) {
+            for (Integer node : Cp_neighbors.get(u)) {
+                if (node == u) continue;
+                neighbors.add(node);
+            }
+        }
+
+        // 处理Cminus邻居
+        if(Cm_neighbors.containsKey(u)) {
+            for (Integer node : Cm_neighbors.get(u)) {
+                neighbors.remove(node);
+            }
+        }
+        return neighbors;
+    }
+
+    /**
+     * 这个函数恢复顶点的邻居集合，对应使用了数据结构 P, Cp_0, Cp_1, Cm_0 和 Cm_1
+     * @param u 顶点u的编号
+     * @return
+     */
+    public Set<Integer> recoverNeighbors_new(int u) {
+        Set<Integer> neighbors = new TreeSet<>();
+        // 恢复顶点u的所有顶点
+        int A = S[u];
+        int[] in_A = recoverSuperNode(A);
+
+        // 处理超边
+        for (Pair<Integer, Integer> superEdge : P) {
+            if(superEdge.getValue0() == A){
+                int[] in_B = recoverSuperNode(superEdge.getValue1());
+                for(int node : in_B){
+                    if(node == u) continue;
+                    neighbors.add(node);
+                }
+            } else if(superEdge.getValue1() == A){
+                int[] in_B = recoverSuperNode(superEdge.getValue0());
+                for (int node : in_B) {
+                    if(node == u) continue;
+                    neighbors.add(node);
+                }
+            }
+
+        }
+
+        // 处理Cplus邻居
+        for (int i = 0; i < Cp_0.size(); i++) {
+            if (Cp_0.get(i) == u && Cp_1.get(i) != u) {
+               neighbors.add(Cp_1.get(i));
+            } else if (Cp_1.get(i) == u && Cp_0.get(i) != u) {
+                neighbors.add(Cp_0.get(i));
+            }
+        }
+
+        // 处理Cminus邻居
+        for (int i = 0; i < Cm_0.size(); i++) {
+            if (Cm_0.get(i) == u && Cm_1.get(i) != u) {
+                neighbors.remove(Cm_1.get(i));
+            } else if (Cm_1.get(i) == u && Cm_0.get(i) != u) {
+                neighbors.remove(Cm_0.get(i));
+            }
+        }
+        return neighbors;
     }
 
     /**
