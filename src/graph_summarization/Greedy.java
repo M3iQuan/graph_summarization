@@ -685,10 +685,8 @@ public class Greedy extends Summary{
             System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - mergeStartTime)/1000.0);
             System.out.println("After Merge phase, H.size():" + H.size());
             if (it % print_iteration_offset == 0) {
-                System.out.printf("Before @Time: %5f seconds%n", encodePhase_new());
                 System.out.printf("After @Time: %5f seconds%n", encodePhase_test());
-//                evaluatePhase();
-                evaluatePhase_test();
+                evaluatePhase();
             }
         }
     }

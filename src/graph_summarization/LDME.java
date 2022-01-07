@@ -2377,10 +2377,6 @@ public class LDME extends Summary{
 //        evaluatePhase();
     }
 
-
-
-
-
     /**
      * 记录origin方法中小组的大小分布和合并成功次数
      * @param iteration 迭代次数
@@ -2692,133 +2688,6 @@ public class LDME extends Summary{
         outputResult(it2Records, "hierarchical.txt", 1);
     }
 
-    public void testRecoverNeighbors_new(){
-        double time_1 = 0;
-        double time_2 = 0;
-
-        List<Integer> wrongNodes = new ArrayList<>();
-        int correct = 0;
-        int wrong = 0;
-
-        for (int i = 0; i < 10; i++) {
-            long startTime_1 = System.currentTimeMillis();
-            int[] origin_ = Gr.successorArray(i);
-            time_1 += (System.currentTimeMillis() - startTime_1) / 1000.0;
-            long startTime_2 = System.currentTimeMillis();
-            Set<Integer> summary_ = recoverNeighbors_new(i);
-            time_2 += (System.currentTimeMillis() - startTime_2) / 1000.0;
-            boolean flag = true;
-            for (int node : origin_) {
-                if(!summary_.contains(node)){
-                    flag = false;
-                    continue;
-                }
-                summary_.remove(node);
-            }
-            if (!flag || summary_.size() != 0) {
-                wrong++;
-                wrongNodes.add(i);
-            }else{
-                correct++;
-            }
-        }
-        System.out.println("Get origin neighbors for all nodes need " + time_1 + " seconds, average " + (time_1 / n) + " seconds");
-        System.out.println("Get recover neighbors for all nodes need " + time_2 + " seconds, average " + (time_2 / n) + " seconds");
-        System.out.println("Total: " + (correct + wrong) + ", correct: " + correct + ", wrong: " + wrong);
-
-//        for(Integer u : wrongNodes){
-//            int[] origin_ = Gr.successorArray(u);
-//            Set<Integer> summary_ = recoverNeighbors(u);
-//            System.out.print(u + "'s degree:" + Gr.outdegree(u) + ", origin neighbors contain:");
-//            for (int node : origin_) {
-//                System.out.print(node + " ");
-//            }
-//            System.out.print("\n" + u + "'s recover neighbors contain:");
-//            for (Integer node : summary_) {
-//                System.out.print(node + " ");
-//            }
-//            System.out.println();
-//        }
-//        int u = wrongNodes.get(0);
-//        int[] origin_ = Gr.successorArray(u);
-//        Set<Integer> summary_ = recoverNeighbors(u);
-//        System.out.print(u + "'s origin neighbors:");
-//        for(int node : origin_){
-//            System.out.print(node + " ");
-//        }
-//        System.out.println();
-//        System.out.print(u + "'s recover neighbors:");
-//        for (int node : summary_) {
-//            System.out.print(node + " ");
-//        }
-//        System.out.println();
-
-    }
-
-    public void testRecoverNeighbors_test(){
-        double time_1 = 0;
-        double time_2 = 0;
-
-        List<Integer> wrongNodes = new ArrayList<>();
-        int correct = 0;
-        int wrong = 0;
-
-        for (int i = 0; i < n; i++) {
-            long startTime_1 = System.currentTimeMillis();
-            int[] origin_ = Gr.successorArray(i);
-            time_1 += (System.currentTimeMillis() - startTime_1) / 1000.0;
-            long startTime_2 = System.currentTimeMillis();
-            Set<Integer> summary_ = recoverNeighbors_test(i);
-            time_2 += (System.currentTimeMillis() - startTime_2) / 1000.0;
-            boolean flag = true;
-            for (int node : origin_) {
-                if(!summary_.contains(node)){
-                    flag = false;
-                    continue;
-                }
-                summary_.remove(node);
-            }
-            if (!flag || summary_.size() != 0) {
-                wrong++;
-                wrongNodes.add(i);
-            }else{
-                correct++;
-            }
-        }
-        System.out.println("Get origin neighbors for all nodes need " + time_1 + " seconds, average " + (time_1 / n) + " seconds");
-        System.out.println("Get recover neighbors for all nodes need " + time_2 + " seconds, average " + (time_2 / n) + " seconds");
-        System.out.println("Total: " + (correct + wrong) + ", correct: " + correct + ", wrong: " + wrong);
-
-//        for(Integer u : wrongNodes){
-//            int[] origin_ = Gr.successorArray(u);
-//            Set<Integer> summary_ = recoverNeighbors(u);
-//            System.out.print(u + "'s degree:" + Gr.outdegree(u) + ", origin neighbors contain:");
-//            for (int node : origin_) {
-//                System.out.print(node + " ");
-//            }
-//            System.out.print("\n" + u + "'s recover neighbors contain:");
-//            for (Integer node : summary_) {
-//                System.out.print(node + " ");
-//            }
-//            System.out.println();
-//        }
-//        int u = wrongNodes.get(0);
-//        int[] origin_ = Gr.successorArray(u);
-//        Set<Integer> summary_ = recoverNeighbors(u);
-//        System.out.print(u + "'s origin neighbors:");
-//        for(int node : origin_){
-//            System.out.print(node + " ");
-//        }
-//        System.out.println();
-//        System.out.print(u + "'s recover neighbors:");
-//        for (int node : summary_) {
-//            System.out.print(node + " ");
-//        }
-//        System.out.println();
-
-    }
-
-
     /**
      * @param iteration              迭代次数
      * @param print_iteration_offset 每执行多少次迭代就进行一次 encode 和 evaluate 进行结果输出
@@ -2847,18 +2716,14 @@ public class LDME extends Summary{
         for (int it = 1; it <= iteration; it++) {
             System.out.println("\n------------------------- ITERATION " + it);
             double threshold = 1 / ((it + 1) * 1.0);
-            double Threshold = 0.5 - it * 0.05;
+//            double Threshold = 0.5 - it * 0.05;
             System.out.println(String.format("@Time: %5f seconds", dividePhase()));
 //            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
             System.out.println(String.format("@Time: %5f seconds", mergePhase_test2(it, threshold)));
             if (it % print_iteration_offset == 0) {
-//                System.out.println(String.format("@Time: %5f seconds", encodePhase()));
-//                System.out.println(String.format("@Time: %5f seconds", encodePhase_new()));
-                System.out.println(String.format("@Time: %5f seconds", encodePhase_new2()));
                 System.out.println(String.format("@Time: %5f seconds", encodePhase_test()));
-                evaluatePhase_test();
-                testRecoverNeighbors_test();
-                testRecoverNeighbors_new();
+                evaluatePhase();
+                testRecoverNeighbors(n, "test");
             }
         }
 //

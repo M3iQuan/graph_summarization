@@ -22,7 +22,6 @@ public class Summary {
     int[] J;
 
     // 记录超点是否是存在自环边
-    int[] self_loop;
 
     // 用于记录每个超点的大小
     int[] supernode_sizes;
@@ -52,14 +51,12 @@ public class Summary {
         I = new int[n];
         J = new int[n];
 
-        self_loop = new int[n];
 
         // 初始化每个顶点为一个超点，即分别设置 S[i]=i, I[i]=i 和 J[i]=i
         for (int i = 0; i < n; i++) {
             S[i] = i;  //Initial each node as a supernode
             I[i] = i;
             J[i] = -1;
-            self_loop[i] = 0;
         }
     }
 
@@ -894,6 +891,11 @@ public class Summary {
         P_neighbors = new HashMap<>();
         Cp_neighbors = new HashMap<>();
         Cm_neighbors = new HashMap<>();
+        P = new ArrayList<>();
+        Cp_0 = new TIntArrayList();
+        Cp_1 = new TIntArrayList();
+        Cm_0 = new TIntArrayList();
+        Cm_1 = new TIntArrayList();
 
         LinkedList<FourTuple> edges_encoding = new LinkedList<>();
         for (int node = 0; node < n; node++) {
@@ -928,6 +930,13 @@ public class Summary {
                     // 不形成超边
                     if(edges_set.size() <= edges_compare_cond){
                         for(Pair<Integer, Integer> edge : edges_set){
+                            if (edge.getValue0() <= edge.getValue1()) {
+                                Cp_0.add(edge.getValue0());
+                                Cp_1.add(edge.getValue1());
+                            }else{
+                                Cp_0.add(edge.getValue1());
+                                Cp_1.add(edge.getValue0());
+                            }
                             if(!Cp_neighbors.containsKey(edge.getValue0()))
                                 Cp_neighbors.put(edge.getValue0(), new ArrayList<>());
                             if(!Cp_neighbors.containsKey(edge.getValue1()))
@@ -936,6 +945,7 @@ public class Summary {
                             Cp_neighbors.get(edge.getValue1()).add(edge.getValue0());
                         }
                     }else{
+                        P.add(new Pair(prev_A, prev_B));
                         if(!P_neighbors.containsKey(prev_A))
                             P_neighbors.put(prev_A, new ArrayList<>());
                         if(!P_neighbors.containsKey(prev_B))
@@ -943,13 +953,19 @@ public class Summary {
                         P_neighbors.get(prev_A).add(prev_B);
                         P_neighbors.get(prev_B).add(prev_A);
                         if(prev_A == prev_B){
-                            self_loop[prev_A] = 1;
                             int[] in_A = recoverSuperNode(prev_A);
                             for (int a = 0; a < in_A.length; a++) {
                                 for (int b = a + 1; b < in_A.length; b++) {
                                     Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
                                     Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
                                     if( !edges_set.contains(edge_1) && !edges_set.contains(edge_2) ){
+                                        if (in_A[a] <= in_A[b]) {
+                                            Cm_0.add(in_A[a]);
+                                            Cm_1.add(in_A[b]);
+                                        } else {
+                                            Cm_0.add(in_A[b]);
+                                            Cm_1.add(in_A[a]);
+                                        }
                                         if(!Cm_neighbors.containsKey(in_A[a]))
                                             Cm_neighbors.put(in_A[a], new ArrayList<>());
                                         if(!Cm_neighbors.containsKey(in_A[b]))
@@ -967,6 +983,13 @@ public class Summary {
                                     Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
                                     Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
                                     if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                        if (in_A[a] <= in_B[b]) {
+                                            Cm_0.add(in_A[a]);
+                                            Cm_1.add(in_B[b]);
+                                        } else {
+                                            Cm_0.add(in_B[b]);
+                                            Cm_1.add(in_A[a]);
+                                        }
                                         if (!Cm_neighbors.containsKey(in_A[a]))
                                             Cm_neighbors.put(in_A[a], new ArrayList<>());
                                         if (!Cm_neighbors.containsKey(in_B[b]))
@@ -998,6 +1021,13 @@ public class Summary {
                 // 不形成超边
                 if(edges_set.size() <= edges_compare_cond){
                     for(Pair<Integer, Integer> edge : edges_set){
+                        if (edge.getValue0() <= edge.getValue1()) {
+                            Cp_0.add(edge.getValue0());
+                            Cp_1.add(edge.getValue1());
+                        }else{
+                            Cp_0.add(edge.getValue1());
+                            Cp_1.add(edge.getValue0());
+                        }
                         if(!Cp_neighbors.containsKey(edge.getValue0()))
                             Cp_neighbors.put(edge.getValue0(), new ArrayList<>());
                         if(!Cp_neighbors.containsKey(edge.getValue1()))
@@ -1006,6 +1036,7 @@ public class Summary {
                         Cp_neighbors.get(edge.getValue1()).add(edge.getValue0());
                     }
                 }else{
+                    P.add(new Pair(prev_A, prev_B));
                     if(!P_neighbors.containsKey(prev_A))
                         P_neighbors.put(prev_A, new ArrayList<>());
                     if(!P_neighbors.containsKey(prev_B))
@@ -1013,13 +1044,19 @@ public class Summary {
                     P_neighbors.get(prev_A).add(prev_B);
                     P_neighbors.get(prev_B).add(prev_A);
                     if(prev_A == prev_B){
-                        self_loop[prev_A] = 1;
                         int[] in_A = recoverSuperNode(prev_A);
                         for (int a = 0; a < in_A.length; a++) {
                             for (int b = a + 1; b < in_A.length; b++) {
                                 Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_A[b]);
                                 Pair<Integer, Integer> edge_2 = new Pair<>(in_A[b], in_A[a]);
                                 if( !edges_set.contains(edge_1) && !edges_set.contains(edge_2) ){
+                                    if (in_A[a] <= in_A[b]) {
+                                        Cm_0.add(in_A[a]);
+                                        Cm_1.add(in_A[b]);
+                                    } else {
+                                        Cm_0.add(in_A[b]);
+                                        Cm_1.add(in_A[a]);
+                                    }
                                     if(!Cm_neighbors.containsKey(in_A[a]))
                                         Cm_neighbors.put(in_A[a], new ArrayList<>());
                                     if(!Cm_neighbors.containsKey(in_A[b]))
@@ -1037,6 +1074,13 @@ public class Summary {
                                 Pair<Integer, Integer> edge_1 = new Pair<>(in_A[a], in_B[b]);
                                 Pair<Integer, Integer> edge_2 = new Pair<>(in_B[b], in_A[a]);
                                 if (!edges_set.contains(edge_1) && !edges_set.contains(edge_2)) {
+                                    if (in_A[a] <= in_B[b]) {
+                                        Cm_0.add(in_A[a]);
+                                        Cm_1.add(in_B[b]);
+                                    } else {
+                                        Cm_0.add(in_B[b]);
+                                        Cm_1.add(in_A[a]);
+                                    }
                                     if (!Cm_neighbors.containsKey(in_A[a]))
                                         Cm_neighbors.put(in_A[a], new ArrayList<>());
                                     if (!Cm_neighbors.containsKey(in_B[b]))
@@ -1050,6 +1094,7 @@ public class Summary {
                 }
             }
         }
+
         return (System.currentTimeMillis() - startTime) / 1000.0;
     }
 
@@ -1059,20 +1104,7 @@ public class Summary {
      * @nodes: xxxxx ===> xxxxx
      * @edges: xxxxx ===> xxxxx(P:xxx, C+:xxx, C-:xxx)
      */
-    public void evaluatePhase() {
-        System.out.println("# Evaluate Phase");
-        int sp_num = 0;
-        for (int i = 0; i < n; i++) {
-            if (I[i] != -1) {
-                sp_num++;
-            }
-        }
-        System.out.println(String.format("@Compression: %.5f", (1 - (P.size() + Cp_0.size() + Cm_0.size() * 1.0) / (Gr.numArcs() * 1.0))));
-        System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
-        System.out.println("@edges: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
-    }
-
-    public void evaluatePhase_test(){
+    public void evaluatePhase(){
         System.out.println("# Evaluate Phase");
         int sp_num = 0;
         for (int i = 0; i < n; i++) {
@@ -1103,7 +1135,7 @@ public class Summary {
         System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
         System.out.println("@before: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
         System.out.println("@after: " + total + "\t ===> \t" + (P_num + Cp_num + Cm_num) + String.format("(P:%d, C+:%d, C-:%d)", P_num, Cp_num, Cm_num));
-        System.out.println(String.format("@Compression: %f(before) \t %f(after)", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total)));
+        System.out.printf("@Compression: %f(before) \t %f(after)%n", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total));
     }
     /**
      * 计算当前的压缩率
@@ -1117,99 +1149,154 @@ public class Summary {
 
     /**
      * 通过Summary Graph来恢复某个点u的邻居集合
-     * 对应使用了数据结构 P_neighbors, Cp_neighbors 和 Cm_neighbors
+     * 参数method=new, 对应使用了数据结构 P, Cp_0, Cp_1, Cm_0 和 Cm_1
+     * 参数method=test, 对应使用了数据结构 P_neighbors, Cp_neighbors 和 Cm_neighbors
      * @param u 顶点u的编号
+     * @param method 使用哪个方式: new , test
      * @return
      */
-    public Set<Integer> recoverNeighbors_test(int u) {
+    public Set<Integer> recoverNeighbors(int u, String method) {
         Set<Integer> neighbors = new TreeSet<>();
         // 恢复顶点u的所有顶点
         int A = S[u];
-        int[] in_A = recoverSuperNode(A);
 
-        // 处理自环边
-        if(self_loop[u] == 1){
-            for (int node : in_A) {
-                if(node == u) continue;
-                neighbors.add(node);
+        if (method.equals("new")) {
+            // 处理超边邻居和自环边
+            for (Pair<Integer, Integer> superEdge : P) {
+                if(superEdge.getValue0() == A){
+                    int[] in_B = recoverSuperNode(superEdge.getValue1());
+                    for(int node : in_B){
+                        if(node == u) continue;
+                        neighbors.add(node);
+                    }
+                } else if(superEdge.getValue1() == A){
+                    int[] in_B = recoverSuperNode(superEdge.getValue0());
+                    for (int node : in_B) {
+                        if(node == u) continue;
+                        neighbors.add(node);
+                    }
+                }
             }
-        }
-
-        // 处理超边邻居
-        if(P_neighbors.containsKey(A)) {
-            for (Integer B : P_neighbors.get(A)) {
-                int[] in_B = recoverSuperNode(B);
-                for (int node : in_B) {
+            // 处理Cplus邻居
+            for (int i = 0; i < Cp_0.size(); i++) {
+                if (Cp_0.get(i) == u && Cp_1.get(i) != u) {
+                    neighbors.add(Cp_1.get(i));
+                } else if (Cp_1.get(i) == u && Cp_0.get(i) != u) {
+                    neighbors.add(Cp_0.get(i));
+                }
+            }
+            // 处理Cminus邻居
+            for (int i = 0; i < Cm_0.size(); i++) {
+                if (Cm_0.get(i) == u && Cm_1.get(i) != u) {
+                    neighbors.remove(Cm_1.get(i));
+                } else if (Cm_1.get(i) == u && Cm_0.get(i) != u) {
+                    neighbors.remove(Cm_0.get(i));
+                }
+            }
+        }else{
+            // 处理超边邻居和自环边
+            if(P_neighbors.containsKey(A)) {
+                for (Integer B : P_neighbors.get(A)) {
+                    int[] in_B = recoverSuperNode(B);
+                    for (int node : in_B) {
+                        if (node == u) continue;
+                        neighbors.add(node);
+                    }
+                }
+            }
+            // 处理Cplus邻居
+            if(Cp_neighbors.containsKey(u)) {
+                for (Integer node : Cp_neighbors.get(u)) {
                     if (node == u) continue;
                     neighbors.add(node);
                 }
             }
-        }
-
-        // 处理Cplus邻居
-        if(Cp_neighbors.containsKey(u)) {
-            for (Integer node : Cp_neighbors.get(u)) {
-                if (node == u) continue;
-                neighbors.add(node);
+            // 处理Cminus邻居
+            if(Cm_neighbors.containsKey(u)) {
+                for (Integer node : Cm_neighbors.get(u)) {
+                    neighbors.remove(node);
+                }
             }
         }
 
-        // 处理Cminus邻居
-        if(Cm_neighbors.containsKey(u)) {
-            for (Integer node : Cm_neighbors.get(u)) {
-                neighbors.remove(node);
-            }
-        }
         return neighbors;
     }
 
     /**
-     * 这个函数恢复顶点的邻居集合，对应使用了数据结构 P, Cp_0, Cp_1, Cm_0 和 Cm_1
-     * @param u 顶点u的编号
-     * @return
+     * 测试合并后的summary graph是否能正确恢复顶点的邻居集合
      */
-    public Set<Integer> recoverNeighbors_new(int u) {
-        Set<Integer> neighbors = new TreeSet<>();
-        // 恢复顶点u的所有顶点
-        int A = S[u];
-        int[] in_A = recoverSuperNode(A);
-
-        // 处理超边
-        for (Pair<Integer, Integer> superEdge : P) {
-            if(superEdge.getValue0() == A){
-                int[] in_B = recoverSuperNode(superEdge.getValue1());
-                for(int node : in_B){
-                    if(node == u) continue;
-                    neighbors.add(node);
+    public void testRecoverNeighbors(int num, String method){
+        double origin_time = 0, recover_time = 0;
+        long startTime = 0;
+        List<Integer> wrongNodes = new ArrayList<>();
+        int correct = 0, wrong = 0;
+        for (int i = 0; i < num; i++) {
+            startTime = System.currentTimeMillis();
+            int[] origin_ = Gr.successorArray(i);
+            origin_time += (System.currentTimeMillis() - startTime) / 1000.0;
+            startTime = System.currentTimeMillis();
+            Set<Integer> summary_ = recoverNeighbors(i, method);
+            recover_time += (System.currentTimeMillis() - startTime) / 1000.0;
+            boolean flag = true;
+            for (int node : origin_) {
+                if(!summary_.contains(node)){
+                    flag = false;
+                    continue;
                 }
-            } else if(superEdge.getValue1() == A){
-                int[] in_B = recoverSuperNode(superEdge.getValue0());
-                for (int node : in_B) {
-                    if(node == u) continue;
-                    neighbors.add(node);
-                }
+                summary_.remove(node);
             }
-
-        }
-
-        // 处理Cplus邻居
-        for (int i = 0; i < Cp_0.size(); i++) {
-            if (Cp_0.get(i) == u && Cp_1.get(i) != u) {
-               neighbors.add(Cp_1.get(i));
-            } else if (Cp_1.get(i) == u && Cp_0.get(i) != u) {
-                neighbors.add(Cp_0.get(i));
+            if (!flag || summary_.size() != 0) {
+                wrong++;
+                wrongNodes.add(i);
+            }else{
+                correct++;
             }
         }
+        System.out.println("Get origin neighbors for all nodes need " + origin_time + " seconds, average " + (origin_time / num) + " seconds");
+        System.out.println("Get recover neighbors for all nodes need " + recover_time + " seconds, average " + (recover_time / num) + " seconds");
+        System.out.println("Total: " + (correct + wrong) + ", correct: " + correct + ", wrong: " + wrong);
 
-        // 处理Cminus邻居
-        for (int i = 0; i < Cm_0.size(); i++) {
-            if (Cm_0.get(i) == u && Cm_1.get(i) != u) {
-                neighbors.remove(Cm_1.get(i));
-            } else if (Cm_1.get(i) == u && Cm_0.get(i) != u) {
-                neighbors.remove(Cm_0.get(i));
-            }
+        checkoutWrongNeighbors(wrongNodes, method);
+    }
+
+    /**
+     * 对邻居恢复出错的顶点进行debug
+     * @param wrongNodes 错误的顶点集合
+     * @param method 采用的方式: new , test
+     */
+    public void checkoutWrongNeighbors(List<Integer> wrongNodes, String method) {
+//        for(Integer u : wrongNodes){
+//            int[] origin_ = Gr.successorArray(u);
+//            Set<Integer> summary_;
+//            if(method.equals("test")){
+//                summary_ = recoverNeighbors_test(u);
+//            } else{
+//                summary_ = recoverNeighbors_new(u);
+//            }
+//            System.out.print(u + "'s degree:" + Gr.outdegree(u) + ", origin neighbors contain:");
+//            for (int node : origin_) {
+//                System.out.print(node + " ");
+//            }
+//            System.out.print("\n" + u + "'s recover neighbors contain:");
+//            for (Integer node : summary_) {
+//                System.out.print(node + " ");
+//            }
+//            System.out.println();
+//        }
+        if(wrongNodes.size() == 0) return;
+        int u = wrongNodes.get(0);
+        int[] origin_ = Gr.successorArray(u);
+        Set<Integer> summary_ = recoverNeighbors(u, method);
+        System.out.print(u + "'s origin neighbors:");
+        for(int node : origin_){
+            System.out.print(node + " ");
         }
-        return neighbors;
+        System.out.println();
+        System.out.print(u + "'s recover neighbors:");
+        for (int node : summary_) {
+            System.out.print(node + " ");
+        }
+        System.out.println();
     }
 
     /**
