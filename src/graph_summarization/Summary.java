@@ -12,6 +12,9 @@ import java.util.*;
 public class Summary {
     // webgraph 框架中的不变图对象，可以用来获取图的顶点和边属性
     ImmutableGraph Gr;
+    // 图的邻居属性，因为有的图存在自环边，因此自行修改
+    int[][] neighbors_;
+
     // 图的顶点数量
     int n;
     // 超点数组，用来指明每个顶点的超点编号，如 S[3]=2 表示原图顶点3的超点编号是2
@@ -40,13 +43,14 @@ public class Summary {
      * 构造函数，用于初始化一些共同的结构
      *
      * @param basename 数据集的基本名字
-     * @throws Exception
      */
     public Summary(String basename) throws Exception {
         // 调用 webgraph 框架来读取数据并构造图
         Gr = ImmutableGraph.loadMapped(basename);
         n = Gr.numNodes();
 
+        // 修正邻居集合
+        neighbors_ = new int[n][];
         S = new int[n];
         I = new int[n];
         J = new int[n];
@@ -57,6 +61,17 @@ public class Summary {
             S[i] = i;  //Initial each node as a supernode
             I[i] = i;
             J[i] = -1;
+
+            // 纠正顶点的邻居数据
+            List<Integer> temp = new ArrayList<>();
+            for (int node : Gr.successorArray(i)) {
+                if(node == i) continue;
+                temp.add(node);
+            }
+            neighbors_[i] = new int[temp.size()];
+            for (int j = 0; j < temp.size(); j++) {
+                neighbors_[i][j] = temp.get(j);
+            }
         }
     }
 
@@ -127,7 +142,8 @@ public class Summary {
             HashMap<Integer, Integer> w_Single = new HashMap<Integer, Integer>();
             int[] Nodes = recoverSuperNode(Q[i]);
             for (int j = 0; j < Nodes.length; j++) {
-                int[] Neigh = Gr.successorArray(Nodes[j]);
+                int[] Neigh = neighbors_[Nodes[j]];
+//                int[] Neigh = Gr.successorArray(Nodes[j]);
                 for (int k = 0; k < Neigh.length; k++) {
                     if (w_Single.containsKey(Neigh[k]))
                         w_Single.put(Neigh[k], w_Single.get(Neigh[k]) + 1);
@@ -164,7 +180,8 @@ public class Summary {
         HashMap<Integer, Integer> w_Single = new HashMap<>();
         int[] Nodes = recoverSuperNode(super_node_id);
         for (int node : Nodes) {
-            int[] Neigh = Gr.successorArray(node);
+            int[] Neigh = neighbors_[node];
+//            int[] Neigh = Gr.successorArray(node);
             for (int i : Neigh) {
                 if (w_Single.containsKey(i))
                     w_Single.put(i, w_Single.get(i) + 1);
@@ -514,7 +531,8 @@ public class Summary {
             // find each edges between superNode A and other superNodes
             for (int a = 0; a < in_A.size(); a++) {
                 int node = in_A.get(a);
-                int[] neighbours = Gr.successorArray(node);
+                int[] neighbours = neighbors_[node];
+//                int[] neighbours = Gr.successorArray(node);
 
                 for (int i = 0; i < neighbours.length; i++) {
                     // B = S_copy[neighbours[i]]
@@ -609,7 +627,8 @@ public class Summary {
 
         LinkedList<FourTuple> edges_encoding = new LinkedList<FourTuple>();
         for (int node = 0; node < n; node++) {
-            for(int neighbour : Gr.successorArray(node)) {
+            for(int neighbour : neighbors_[node]) {
+//            for(int neighbour : Gr.successorArray(node)) {
                 if (S_copy[node] <= S_copy[neighbour]) {
                     edges_encoding.add(new FourTuple(S_copy[node], S_copy[neighbour], node, neighbour));
                 }
@@ -711,7 +730,8 @@ public class Summary {
         // 把每条边按他们的所属的超边组合起来
         LinkedList<FourTuple> edges_encoding = new LinkedList<FourTuple>();
         for (int node = 0; node < n; node++) {
-            for(int neighbour : Gr.successorArray(node)) {
+            for(int neighbour : neighbors_[node]) {
+//            for(int neighbour : Gr.successorArray(node)) {
                 if(node <= neighbour){
                     if (S[node] <= S[neighbour]) {
 //                        edges_encoding.add(new FourTuple(S_copy[node], S_copy[neighbour], node, neighbour));
@@ -886,6 +906,7 @@ public class Summary {
      * @return
      */
     public double encodePhase_test(){
+        System.out.println("# Encode Phase");
         long startTime = System.currentTimeMillis();
 
         P_neighbors = new HashMap<>();
@@ -899,7 +920,8 @@ public class Summary {
 
         LinkedList<FourTuple> edges_encoding = new LinkedList<>();
         for (int node = 0; node < n; node++) {
-            for(int neighbor : Gr.successorArray(node)){
+            for(int neighbor : neighbors_[node]) {
+//            for(int neighbor : Gr.successorArray(node)){
                 if (node <= neighbor) {
                     if(S[node] <= S[neighbor]){
                         edges_encoding.add(new FourTuple(S[node], S[neighbor], node, neighbor));
@@ -1128,12 +1150,14 @@ public class Summary {
 
         int total = 0;
         for (int i = 0; i < n; i++) {
-            int[] neighbors = Gr.successorArray(i);
+            int[] neighbors = neighbors_[i];
+//            int[] neighbors = Gr.successorArray(i);
             total += neighbors.length;
         }
 
         System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
-        System.out.println("@before: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
+//        System.out.println("@before: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
+        System.out.println("@before: " + total + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
         System.out.println("@after: " + total + "\t ===> \t" + (P_num + Cp_num + Cm_num) + String.format("(P:%d, C+:%d, C-:%d)", P_num, Cp_num, Cm_num));
         System.out.printf("@Compression: %f(before) \t %f(after)%n", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total));
     }
@@ -1233,7 +1257,8 @@ public class Summary {
         int correct = 0, wrong = 0;
         for (int i = 0; i < num; i++) {
             startTime = System.currentTimeMillis();
-            int[] origin_ = Gr.successorArray(i);
+            int[] origin_ = neighbors_[i];
+//            int[] origin_ = Gr.successorArray(i);
             origin_time += (System.currentTimeMillis() - startTime) / 1000.0;
             startTime = System.currentTimeMillis();
             Set<Integer> summary_ = recoverNeighbors(i, method);
@@ -1267,6 +1292,7 @@ public class Summary {
      */
     public void checkoutWrongNeighbors(List<Integer> wrongNodes, String method) {
 //        for(Integer u : wrongNodes){
+//            int[] origin_ = neighbors_[u];
 //            int[] origin_ = Gr.successorArray(u);
 //            Set<Integer> summary_;
 //            if(method.equals("test")){
@@ -1286,7 +1312,8 @@ public class Summary {
 //        }
         if(wrongNodes.size() == 0) return;
         int u = wrongNodes.get(0);
-        int[] origin_ = Gr.successorArray(u);
+        int[] origin_ = neighbors_[u];
+//        int[] origin_ = Gr.successorArray(u);
         Set<Integer> summary_ = recoverNeighbors(u, method);
         System.out.print(u + "'s origin neighbors:");
         for(int node : origin_){

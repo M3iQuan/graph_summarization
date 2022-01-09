@@ -109,7 +109,8 @@ public class LDME extends Summary{
             if (I[A] == -1) continue;
             // 遍历超点的每个顶点v
             for (int v = I[A]; ; v=J[v]) {
-                int[] neighbours = Gr.successorArray(v);
+                int[] neighbours = neighbors_[v];
+//                int[] neighbours = Gr.successorArray(v);
                 // 遍历顶点v的每个邻居j
                 for (int j = 0; j < neighbours.length; j++) {
                     // 得到邻居j重排后的id
@@ -202,7 +203,8 @@ public class LDME extends Summary{
         if (I[A] == -1) return hashSig;
         // 遍历超点的每个顶点v
         for (int v = I[A]; ; v=J[v]) {
-            int[] neighbours = Gr.successorArray(v);
+            int[] neighbours = neighbors_[v];
+//            int[] neighbours = Gr.successorArray(v);
             // 遍历顶点v的每个邻居j
             for (int neighbour : neighbours) {
                 // 得到邻居j重排后的id
@@ -419,7 +421,8 @@ public class LDME extends Summary{
             if(!treeSet.contains(I[A])) continue;
             // 遍历超点的每个顶点v
             for (int v = I[A]; ; v=J[v]) {
-                int[] neighbours = Gr.successorArray(v);
+                int[] neighbours = neighbors_[v];
+//                int[] neighbours = Gr.successorArray(v);
                 // 遍历顶点v的每个邻居j
                 for (int j = 0; j < neighbours.length; j++) {
                     // 得到邻居j重排后的id
@@ -2717,14 +2720,23 @@ public class LDME extends Summary{
             System.out.println("\n------------------------- ITERATION " + it);
             double threshold = 1 / ((it + 1) * 1.0);
 //            double Threshold = 0.5 - it * 0.05;
-            System.out.println(String.format("@Time: %5f seconds", dividePhase()));
+            System.out.printf("@Time: %5f seconds%n", dividePhase());
 //            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
-            System.out.println(String.format("@Time: %5f seconds", mergePhase_test2(it, threshold)));
+            System.out.printf("@Time: %5f seconds%n", mergePhase_test2(it, threshold));
             if (it % print_iteration_offset == 0) {
-                System.out.println(String.format("@Time: %5f seconds", encodePhase_test()));
+                System.out.printf("@Time: %5f seconds%n", encodePhase_test());
                 evaluatePhase();
                 testRecoverNeighbors(n, "test");
             }
+        }
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            System.out.printf("Iteration %d: max_group_size:%d%n", it, max);
         }
 //
 //        int i = 1;

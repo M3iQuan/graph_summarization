@@ -36,8 +36,8 @@ public class Main {
         // signatureLength是LSH的签名长度，即论文里的k
         int signatureLength = Integer.parseInt(args[3]);
 
-        testGreedy(basename, iteration, print_iteration_offset);
-//        testLDME(basename, iteration, print_iteration_offset, signatureLength);
+//        testGreedy(basename, iteration, print_iteration_offset);
+        testLDME(basename, iteration, print_iteration_offset, signatureLength);
 //        testSWeG(basename, iteration, print_iteration_offset);
     }
 }
