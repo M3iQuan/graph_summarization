@@ -6,6 +6,8 @@ import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.hash.TIntHashSet;
 import it.unimi.dsi.webgraph.ImmutableGraph;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -39,6 +41,8 @@ public class Summary {
     Map<Integer, List<Integer>> Cp_neighbors;
     Map<Integer, List<Integer>> Cm_neighbors;
 
+    // 日志文件
+    Logger logger_ = LoggerFactory.getLogger(getClass());
     /**
      * 构造函数，用于初始化一些共同的结构
      *
@@ -56,6 +60,7 @@ public class Summary {
         J = new int[n];
 
 
+        logger_.info("调用初始化函数: 开始初始化数据结构，并纠正数据集中错误的顶点邻居");
         // 初始化每个顶点为一个超点，即分别设置 S[i]=i, I[i]=i 和 J[i]=i
         for (int i = 0; i < n; i++) {
             S[i] = i;  //Initial each node as a supernode
@@ -78,8 +83,8 @@ public class Summary {
     /**
      * 更新超点，即合并两个超点，需要把第二个超点的所有顶点都合并到第一个超点里面(这里做了一个特殊处理，把编号大的合并到小的编号里面)
      *
-     * @param super_node_a
-     * @param super_node_b
+     * @param super_node_a 需要合并的超点a的编号
+     * @param super_node_b 需要合并的超点b的编号
      */
     protected void updateSuperNode(int super_node_a, int super_node_b) {
         int a = Math.min(super_node_a, super_node_b);
@@ -88,15 +93,15 @@ public class Summary {
         int[] B_nodes = recoverSuperNode(b);
         J[A_nodes[A_nodes.length - 1]] = I[b];
         I[b] = -1;
-        for (int i = 0; i < A_nodes.length; i++) S[A_nodes[i]] = I[a];
-        for (int i = 0; i < B_nodes.length; i++) S[B_nodes[i]] = I[a];
+        for (int a_node : A_nodes) S[a_node] = I[a];
+        for (int b_node : B_nodes) S[b_node] = I[a];
     }
 
     /**
      * 计算超点包含多少个顶点
      *
-     * @param super_node_id
-     * @return
+     * @param super_node_id 超点编号
+     * @return 返回超点包含顶点的数量
      */
     protected int superNodeLength(int super_node_id) {
         int counter = 0;
@@ -134,21 +139,21 @@ public class Summary {
      *
      * @param Q          组内的所有超点编号
      * @param group_size 组的大小
-     * @return
+     * @return 返回组内顶点所有的HashMap，用于后续计算顶点合并所需的saving
      */
     protected HashMap<Integer, HashMap<Integer, Integer>> createW(int[] Q, int group_size) {
-        HashMap<Integer, HashMap<Integer, Integer>> w_All = new HashMap<Integer, HashMap<Integer, Integer>>();
+        HashMap<Integer, HashMap<Integer, Integer>> w_All = new HashMap<>();
         for (int i = 0; i < group_size; i++) {
             HashMap<Integer, Integer> w_Single = new HashMap<Integer, Integer>();
             int[] Nodes = recoverSuperNode(Q[i]);
-            for (int j = 0; j < Nodes.length; j++) {
-                int[] Neigh = neighbors_[Nodes[j]];
+            for (int u : Nodes) {
+                int[] Neigh = neighbors_[u];
 //                int[] Neigh = Gr.successorArray(Nodes[j]);
-                for (int k = 0; k < Neigh.length; k++) {
-                    if (w_Single.containsKey(Neigh[k]))
-                        w_Single.put(Neigh[k], w_Single.get(Neigh[k]) + 1);
+                for (int v : Neigh) {
+                    if (w_Single.containsKey(v))
+                        w_Single.put(v, w_Single.get(v) + 1);
                     else
-                        w_Single.put(Neigh[k], 1);
+                        w_Single.put(v, 1);
                 }
             }
             w_All.put(i, w_Single);
@@ -159,7 +164,7 @@ public class Summary {
     /**
      * 计算一个组内所有超点的w，每个顶点的w都是<node_id, num>，返回的是 <index, w> 即顶点在组内的index
      * @param Q 一个包含多个顶点的小组
-     * @return 返回一个HashMap
+     * @return 返回组内顶点所有的HashMap，用于后续计算顶点合并所需的saving
      */
     protected HashMap<Integer, HashMap<Integer, Integer>> createW(List<Integer> Q) {
         HashMap<Integer, HashMap<Integer, Integer>> w_All = new HashMap<>();
@@ -179,14 +184,14 @@ public class Summary {
     protected HashMap<Integer, Integer> createSingleW(int super_node_id) {
         HashMap<Integer, Integer> w_Single = new HashMap<>();
         int[] Nodes = recoverSuperNode(super_node_id);
-        for (int node : Nodes) {
-            int[] Neigh = neighbors_[node];
+        for (int u : Nodes) {
+            int[] Neigh = neighbors_[u];
 //            int[] Neigh = Gr.successorArray(node);
-            for (int i : Neigh) {
-                if (w_Single.containsKey(i))
-                    w_Single.put(i, w_Single.get(i) + 1);
+            for (int v : Neigh) {
+                if (w_Single.containsKey(v))
+                    w_Single.put(v, w_Single.get(v) + 1);
                 else
-                    w_Single.put(i, 1);
+                    w_Single.put(v, 1);
             }
         }
         return w_Single;
@@ -198,10 +203,10 @@ public class Summary {
      *
      * @param w_A 超点A的HashMap
      * @param w_B 超点B的HashMap
-     * @return
+     * @return 更新超点A和B合并后的HashMap
      */
     protected HashMap<Integer, Integer> updateW(HashMap<Integer, Integer> w_A, HashMap<Integer, Integer> w_B) {
-        HashMap<Integer, Integer> result = new HashMap<Integer, Integer>();
+        HashMap<Integer, Integer> result = new HashMap<>();
         for (Integer key : w_A.keySet()) {
             if (w_B.containsKey(key))
                 result.put(key, w_A.get(key) + w_B.get(key));
@@ -221,7 +226,7 @@ public class Summary {
      *
      * @param w_A 超点A的HashMap
      * @param w_B 超点B的HashMap
-     * @return
+     * @return 返回double数值
      */
     protected double computeJacSim(HashMap<Integer, Integer> w_A, HashMap<Integer, Integer> w_B) {
         int down = 0;
@@ -375,7 +380,7 @@ public class Summary {
      * @param w_B         超点B的HashMap
      * @param supernode_A 超点A的编号
      * @param supernode_B 超点B的编号
-     * @return
+     * @return 返回double数值
      */
     protected double computeSaving(HashMap<Integer, Integer> w_A, HashMap<Integer, Integer> w_B, int supernode_A, int supernode_B) {
         int num_A = recoverSuperNode(supernode_A).length;
@@ -423,7 +428,8 @@ public class Summary {
             if (key == supernode_B || key == supernode_A)
                 continue;
 
-            E += candidate_spB.containsKey(key) ? candidate_spB.get(key) : 0;
+            if(candidate_spB.containsKey(key))
+                E += candidate_spB.get(key);
             compare = key == supernode_A ? (((num_A + num_B) * 1.0 * (num_A + num_B - 1)) / 2.0) : ((num_A + num_B) * 1.0 * candidate_size.get(key));
             cost_AUnionB += (E <= compare / 2.0) ? (E) : (1 + compare - E);
         }
@@ -507,10 +513,10 @@ public class Summary {
                 int[] nodes_inside = recoverSuperNode(i);
                 TIntArrayList nodes_inside_list = new TIntArrayList();
                 supernode_sizes[supernode_count] = nodes_inside.length;
-                for (int j = 0; j < nodes_inside.length; j++) {
-                    nodes_inside_list.add(nodes_inside[j]);
+                for (int k : nodes_inside) {
+                    nodes_inside_list.add(k);
                     // Rename the superNode from S_copy[nodes_inside[j]] to supernode_count
-                    S_copy[nodes_inside[j]] = supernode_count;
+                    S_copy[k] = supernode_count;
                 }
                 sn_to_n.put(supernode_count, nodes_inside_list);    // sn_to_n record the relation between (superNode, nodes_list)
                 supernode_count++;
@@ -534,18 +540,18 @@ public class Summary {
                 int[] neighbours = neighbors_[node];
 //                int[] neighbours = Gr.successorArray(node);
 
-                for (int i = 0; i < neighbours.length; i++) {
+                for (int neighbour : neighbours) {
                     // B = S_copy[neighbours[i]]
-                    edges_count[S_copy[neighbours[i]]]++;
+                    edges_count[S_copy[neighbour]]++;
                     // if this B has not already been processed
-                    if (S_copy[neighbours[i]] >= A) {
-                        has_edge_with_A.add(S_copy[neighbours[i]]);
+                    if (S_copy[neighbour] >= A) {
+                        has_edge_with_A.add(S_copy[neighbour]);
                     }
                     // record the edge<node, neighbours[i]> in the edges_list[B]
-                    if (edges_list[S_copy[neighbours[i]]] == null) {
-                        edges_list[S_copy[neighbours[i]]] = new HashSet<Pair<Integer, Integer>>();
+                    if (edges_list[S_copy[neighbour]] == null) {
+                        edges_list[S_copy[neighbour]] = new HashSet<Pair<Integer, Integer>>();
                     }
-                    ((HashSet<Pair<Integer, Integer>>) edges_list[S_copy[neighbours[i]]]).add(new Pair(node, neighbours[i]));
+                    ((HashSet<Pair<Integer, Integer>>) edges_list[S_copy[neighbour]]).add(new Pair(node, neighbour));
                 } // for i
             } // for A
 
@@ -556,9 +562,9 @@ public class Summary {
                 double edge_compare_cond = 0;
                 // figure out which situation: 1. A and A  2. A and B (differ from A)
                 if (A == B) {
-                    edge_compare_cond = supernode_sizes[A] * (supernode_sizes[A] - 1) / 4;
+                    edge_compare_cond = supernode_sizes[A] * (supernode_sizes[A] - 1) * 1.0/ 4;
                 } else {
-                    edge_compare_cond = (supernode_sizes[A] * supernode_sizes[B]) / 2;
+                    edge_compare_cond = (supernode_sizes[A] * supernode_sizes[B]) * 1.0 / 2;
                 }
                 // do not add superEdge between superNode A and B
                 if (edges_count[B] <= edge_compare_cond) {
@@ -906,7 +912,8 @@ public class Summary {
      * @return
      */
     public double encodePhase_test(){
-        System.out.println("# Encode Phase");
+        logger_.info("开始进行边最优编码, 同时采用了P_neighbors 和 P 两种方式...");
+//        System.out.println("# Encode Phase");
         long startTime = System.currentTimeMillis();
 
         P_neighbors = new HashMap<>();
@@ -1127,7 +1134,8 @@ public class Summary {
      * @edges: xxxxx ===> xxxxx(P:xxx, C+:xxx, C-:xxx)
      */
     public void evaluatePhase(){
-        System.out.println("# Evaluate Phase");
+        logger_.info("开始性能评估, 同时统计了 P_neighbors 和 P 两种方式...");
+//        System.out.println("# Evaluate Phase");
         int sp_num = 0;
         for (int i = 0; i < n; i++) {
             if(I[i] != -1) sp_num++;
@@ -1155,11 +1163,10 @@ public class Summary {
             total += neighbors.length;
         }
 
-        System.out.println("@nodes: " + Gr.numNodes() + "\t ===> \t" + sp_num);
-//        System.out.println("@before: " + Gr.numArcs() + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
-        System.out.println("@before: " + total + "\t ===> \t" + (P.size() + Cp_0.size() + Cm_0.size()) + String.format("(P:%d, C+:%d, C-:%d)", P.size(), Cp_0.size(), Cm_0.size()));
-        System.out.println("@after: " + total + "\t ===> \t" + (P_num + Cp_num + Cm_num) + String.format("(P:%d, C+:%d, C-:%d)", P_num, Cp_num, Cm_num));
-        System.out.printf("@Compression: %f(before) \t %f(after)%n", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 1.0 / Gr.numArcs()), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total));
+        logger_.info(String.format("#Nodes: %6d ===> %6d", Gr.numNodes(), sp_num));
+        logger_.info(String.format("#Edges(P): %6d ===> %6d(P:%d, C+:%d, C-:%d)", total, 2 * (P.size() + Cp_0.size() + Cm_0.size()), P.size(), Cp_0.size(), Cm_0.size()));
+        logger_.info(String.format("#Edges(P): %6d ===> %6d(P:%d, C+:%d, C-:%d)", total, (P_num + Cp_num + Cm_num), P_num , Cp_num, Cm_num));
+        logger_.info(String.format("#Compression: %6f(P), %6f(P_neighbors)", (1 - (P.size() + Cp_0.size() + Cm_0.size()) * 2.0 / total), (1 - (P_num + Cp_num + Cm_num) * 1.0 / total)));
     }
 
     /**
@@ -1251,6 +1258,7 @@ public class Summary {
      * 测试合并后的summary graph是否能正确恢复顶点的邻居集合
      */
     public void testRecoverNeighbors(int num, String method){
+        logger_.info("开始测试顶点的邻居集合恢复性能");
         double origin_time = 0, recover_time = 0;
         long startTime = 0;
         List<Integer> wrongNodes = new ArrayList<>();
@@ -1278,10 +1286,9 @@ public class Summary {
                 correct++;
             }
         }
-        System.out.println("Get origin neighbors for all nodes need " + origin_time + " seconds, average " + (origin_time / num) + " seconds");
-        System.out.println("Get recover neighbors for all nodes need " + recover_time + " seconds, average " + (recover_time / num) + " seconds");
-        System.out.println("Total: " + (correct + wrong) + ", correct: " + correct + ", wrong: " + wrong);
-
+        logger_.info(String.format("测试结束, 总计测试顶点 %d, 正确个数 %d, 错误个数 %d", (correct + wrong), correct, wrong));
+        logger_.info(String.format("通过数组获取顶点邻居花费时间 %f seconds, 平均每个顶点花费 %f seconds", origin_time, (origin_time / num)));
+        logger_.info(String.format("通过P_neighbors获取顶点邻居花费时间 %f seconds, 平均每个顶点花费 %f seconds", recover_time, (recover_time / num)));
         checkoutWrongNeighbors(wrongNodes, method);
     }
 
@@ -1311,20 +1318,23 @@ public class Summary {
 //            System.out.println();
 //        }
         if(wrongNodes.size() == 0) return;
+        logger_.debug("顶点的邻居恢复出现问题, 开始检查");
         int u = wrongNodes.get(0);
         int[] origin_ = neighbors_[u];
 //        int[] origin_ = Gr.successorArray(u);
         Set<Integer> summary_ = recoverNeighbors(u, method);
-        System.out.print(u + "'s origin neighbors:");
+        StringBuilder origin_neighbors = new StringBuilder();
+        origin_neighbors.append(u).append("'s origin neighbors contains:");
         for(int node : origin_){
-            System.out.print(node + " ");
+            origin_neighbors.append(node).append(" ");
         }
-        System.out.println();
-        System.out.print(u + "'s recover neighbors:");
+        logger_.debug(origin_neighbors.toString());
+        StringBuilder recover_neighbors = new StringBuilder();
+        recover_neighbors.append(u).append("'s recover neighbors contains:");
         for (int node : summary_) {
-            System.out.print(node + " ");
+            recover_neighbors.append(node).append(" ");
         }
-        System.out.println();
+        logger_.debug(recover_neighbors.toString());
     }
 
     /**
@@ -1426,6 +1436,19 @@ public class Summary {
         }
         P = updated_P;
         System.out.println("Drop Compression: " + (1 - (P.size() + Cp_0.size() + Cm_0.size() * 1.0) / (Gr.numArcs() / 2 * 1.0)));
+    }
+
+    public void checkDataSet(){
+        int self_loop = 0;
+        int arcs = 0;
+        for (int u = 0; u < n; u++) {
+            int[] Neigh = Gr.successorArray(u);
+            for (int v : Neigh) {
+                if(v == u) self_loop++;
+                arcs++;
+            }
+        }
+        logger_.info(String.format("总顶点数量: %d, 总边数: %d, 自环边: %d", n, arcs, self_loop));
     }
 
     /**

@@ -82,8 +82,8 @@ public class LDME extends Summary{
     @Override
     public double dividePhase(){
         long startTime = System.currentTimeMillis();
-        System.out.println("# Divide Phase");
-
+//        System.out.println("# Divide Phase");
+        logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
         int k_bins = signatureLength;
         int bin_size = n / k_bins;
         if (n % k_bins != 0) { k_bins = k_bins + 1; }
@@ -180,8 +180,8 @@ public class LDME extends Summary{
             }
         }
 
-        System.out.println("g_start:" + g_start + ", num_groups:" + num_groups);
-
+//        System.out.println("g_start:" + g_start + ", num_groups:" + num_groups);
+//        logger_.info(String.format("分组结束, num_groups:%d", num_groups));
         return (System.currentTimeMillis() - startTime) / 1000.0;
     }
 
@@ -679,8 +679,9 @@ public class LDME extends Summary{
      *
      */
     public double mergePhase_test2(int iteration, double threshold){
-        System.out.println("# Merge Phase");
-        System.out.printf("Threshold=%5f%n", threshold);
+        logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
+//        System.out.println("# Merge Phase");
+//        System.out.printf("Threshold=%5f%n", threshold);
         // 记录mergePhase的运行时间
         long startTime = System.currentTimeMillis();
         int idx = 0;
@@ -2715,16 +2716,15 @@ public class LDME extends Summary{
 //                evaluatePhase();
 //            }
 //        }
-        System.out.println("----------------------------------- LDME ALGORITHM ----------------------------------------");
+//        System.out.println("----------------------------------- LDME ALGORITHM ----------------------------------------");
+        long starTime = System.currentTimeMillis();
         for (int it = 1; it <= iteration; it++) {
-            System.out.println("\n------------------------- ITERATION " + it);
+            logger_.info(String.format("迭代轮数: %d", it));
             double threshold = 1 / ((it + 1) * 1.0);
-//            double Threshold = 0.5 - it * 0.05;
-            System.out.printf("@Time: %5f seconds%n", dividePhase());
-//            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
-            System.out.printf("@Time: %5f seconds%n", mergePhase_test2(it, threshold));
+            logger_.info(String.format("分组结束, 花费时间 %5f seconds", dividePhase()));
+            logger_.info(String.format("合并结束, 花费时间 %5f seconds", mergePhase_test2(it, threshold)));
             if (it % print_iteration_offset == 0) {
-                System.out.printf("@Time: %5f seconds%n", encodePhase_test());
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
                 evaluatePhase();
                 testRecoverNeighbors(n, "test");
             }
@@ -2736,9 +2736,10 @@ public class LDME extends Summary{
                     max = length;
                 }
             }
-            System.out.printf("Iteration %d: max_group_size:%d%n", it, max);
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
         }
-//
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
+
 //        int i = 1;
 //        for (Double m : merged_success) {
 //            System.out.println("Iteration " + i + ", average merged success pairs:" + m);
