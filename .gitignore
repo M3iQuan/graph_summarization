@@ -1,2 +1,8 @@
 # Project exclude paths
 /out/
+/.idea/inspectionProfiles
+
+# Python
+.ipynb_checkpoints/visualization-checkpoint.ipynb
+visualization.ipynb
+boxen.svg
