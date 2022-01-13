@@ -1,9 +1,6 @@
 package graph_summarization;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SWeG extends  Summary{
@@ -23,6 +20,7 @@ public class SWeG extends  Summary{
 
     // 用于计算合并的成功率
     ArrayList<Double> merged_success;
+    HashMap<Integer, ArrayList<Integer>> total_groups_size;
 
     /**
      * 构造函数，继承了Summary父类的构造函数，同时初始化自己的数据结构
@@ -33,6 +31,7 @@ public class SWeG extends  Summary{
     public SWeG(String basename) throws Exception {
         super(basename);
         merged_success = new ArrayList<>();
+        total_groups_size = new HashMap<>();
     }
 
     /**
@@ -61,9 +60,9 @@ public class SWeG extends  Summary{
      */
     private int shingleValue(int u) {
         int f_u = h[u];
-        int[] neighbors = Gr.successorArray(u);
-        for (int i = 0; i < neighbors.length; i++) {
-            int v = neighbors[i];
+//        int[] neighbors = Gr.successorArray(u);
+        int[] neighbors = neighbors_[u];
+        for (int v : neighbors) {
             if (f_u > h[v]) {
                 f_u = h[v];
             }
@@ -91,7 +90,7 @@ public class SWeG extends  Summary{
      */
     @Override
     public double dividePhase() {
-        System.out.println("# Divide Phase");
+        logger_.info("开始分组, 采用的是Shingle方法");
         long startTime = System.currentTimeMillis();
         // 首先对顶点进行一个编号重排
         randomPermutation();
@@ -230,9 +229,8 @@ public class SWeG extends  Summary{
      * 测试函数，用于验证一下想法：
      *     1.每个组内的合并顶点数量 / 每个小组的顶点数量
      */
-    public double mergePhase_test(double threshold) {
-        System.out.println("# Merge Phase");
-        System.out.println(String.format("Threshold=%5f", threshold));
+    public double mergePhase_test(int iteration, double threshold) {
+        logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
         long startTime = System.currentTimeMillis();
         int idx = 0;
         // temp <- F[G]
@@ -241,12 +239,19 @@ public class SWeG extends  Summary{
 
         HashMap<Integer, ArrayList<Integer>> merged_ = new HashMap<>();
 
+        // 记录迭代次数i的所有size>2的组数量
+        if(!total_groups_size.containsKey(iteration))
+            total_groups_size.put(iteration, new ArrayList<>());
+
         // 开始遍历每个组
         for (int i = 0; i < num_groups; i++) {
             int st_position = group_prop[i][1];
             int group_size = groupLength(temp, group_prop[i][0], st_position) - 1;
             // 如果一个组只有一个顶点则直接跳过该组
             if (group_size < 2) continue;
+
+            // group_size >= 2时，记录下group_size
+            total_groups_size.get(iteration).add(group_size);
 
             // 能成功合并的对数
             int merged_pairs = 0;
@@ -329,29 +334,585 @@ public class SWeG extends  Summary{
     }
 
     /**
+     * 原始的分组方案, 不进行任何修改
+     * @param iteration 迭代次数
+     * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
+     */
+    public void originTest(int iteration, int print_iteration_offset){
+        long startTime = System.currentTimeMillis();
+        Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
+        for (int it = 1; it <= iteration; it++) {
+            List<List<Integer>> groups = new ArrayList<>();
+            logger_.info(String.format("迭代轮数: %d", it));
+            // DividePhase =============================================================================================
+            {
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
+                long divideStartTime = System.currentTimeMillis();
+                // 首先对顶点进行一个编号重排
+                randomPermutation();
+                // 初始化F数组, 用于存储每个顶点的shingle值
+                int[] F_temp = new int[n];
+                for (int A = 0; A < n; A++)
+                    F_temp[A] = -1;
+                for (int A = 0; A < n; A++) {
+                    // A不是一个超点
+                    if (I[A] == -1)
+                        continue;
+                    // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
+                    F_temp[A] = n;
+                    for (int v = I[A]; ; v = J[v]) {
+                        int fv = shingleValue(v);
+                        if (F_temp[A] > fv)
+                            F_temp[A] = fv;
+                        if (J[v] == -1)
+                            break;
+                    }
+                }
+                // 对分组进行排序
+                Integer[] G_temp = new Integer[n];
+                for (int i = 0; i < n; i++) G_temp[i] = i;
+                Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+                // 找到第一个组的开始index
+                int g_start_temp = 0;
+                while (F_temp[G_temp[g_start_temp]] == -1)
+                    g_start_temp++;
+
+                int g = -1;
+                ArrayList<Integer> Q = new ArrayList<>();
+                for (int i = g_start_temp; i < n; i++) {
+                    if (F_temp[G_temp[i]] != g) {
+                       if(Q.size() > 1) groups.add(Q);
+                       g = F_temp[G_temp[i]];
+                       Q = new ArrayList<>();
+                    }
+                    Q.add(G_temp[i]);
+                }
+                if(Q.size() > 1) groups.add(Q);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+
+            // MergePhase ==============================================================================================
+            {
+                double threshold = 1 / ((it + 1) * 1.0);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
+                // 记录mergePhase的运行时间
+                long mergeStartTime = System.currentTimeMillis();
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
+                Map<Integer, Record> recordMap = new HashMap<>();
+                // 开始遍历每个组
+                for (List<Integer> group : groups) {
+                    long start = System.currentTimeMillis();
+                    int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
+                    HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
+                    int initial_size = hm.size();
+                    while (hm.size() > 1) {
+                        Random rand = new Random();
+                        // 从组内随机找到一个超点A
+                        int A = rand.nextInt(initial_size);
+                        if (hm.get(A) == null) continue;
+                        // 变量max记录最大的Jaccard_similarity
+                        double max = 0;
+                        // 变量idx记录最大Jaccard_similarity的那个顶点
+                        int idx = -1;
+                        // 遍历组内其他顶点，找到与A的Jaccard Similarity最大的那个顶点
+                        for (int j = 0; j < initial_size; j++) {
+                            if (hm.get(j) == null)
+                                continue;
+                            if (j == A) continue;
+                            double jaccard_similarity = computeJacSim(hm.get(A), hm.get(j));
+                            if (jaccard_similarity > max) {
+                                max = jaccard_similarity;
+                                idx = j;
+                            }
+                        }
+                        if (idx == -1) {
+                            hm.remove(A);
+                            continue;
+                        }
+                        // 这里做了一个交换，目的是把编号较大的顶点合并到编号较小的顶点里面
+                        if (group.get(A) > group.get(idx)) {
+                            int t = A;
+                            A = idx;
+                            idx = t;
+                        }
+                        // 计算两个顶点之间的合并收益
+                        double savings = computeSaving(hm.get(A), hm.get(idx), group.get(A), group.get(idx));
+                        if (savings >= threshold) {
+                            HashMap<Integer, Integer> w_update = updateW(hm.get(A), hm.get(idx));
+                            hm.replace(A, w_update);
+                            hm.remove(idx);
+                            updateSuperNode(group.get(A), group.get(idx));
+                            success += 1;
+                        } else {
+                            hm.remove(A);
+                        }
+                    }
+                    Double time = (System.currentTimeMillis() - start) / 1000.0;
+                    if (!recordMap.containsKey(group.size())) {
+                        Record r = new Record(group.size(), 1, success, time);
+                        recordMap.put(group.size(), r);
+                    } else {
+                        Record r = recordMap.get(group.size());
+                        r.add(1, success, time);
+                    }
+
+                }
+                it2Records.put(it, recordMap);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+            if (it % print_iteration_offset == 0) {
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
+                evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+            }
+        }
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+    }
+
+    /**
+     * 对组内顶点数量大于maxGroupSize的小组进行顺序划分
+     * @param group 组内数量大于maxGroupSize的小组
+     * @param maxGroupSize 最大组内数量阈值
+     * @return 按阈值切分后的小组
+     */
+    public List<List<Integer>> sequentialSplitGroup(List<Integer> group, int maxGroupSize){
+        List<List<Integer>> groups = new ArrayList<>();
+        int group_size = group.size();
+        int num = group_size / maxGroupSize;
+        if(group_size % maxGroupSize != 0) num += 1;
+        for (int j = 0; j < num; j++) {
+            int start = j * maxGroupSize;
+            int end = Math.min((j + 1) * maxGroupSize, group_size);
+            List<Integer> subGroup = new ArrayList<>();
+            for (int k = start; k < end; k++) {
+                subGroup.add(group.get(k));
+            }
+            groups.add(subGroup);
+        }
+        return  groups;
+    }
+
+    /**
+     * 顺序切割的分组方案
+     * @param iteration 迭代次数
+     * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
+     */
+    public void sequentialTest(int iteration, int print_iteration_offset, int maxGroupSize){
+        long startTime = System.currentTimeMillis();
+        Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
+        for (int it = 1; it <= iteration; it++) {
+            List<List<Integer>> groups = new ArrayList<>();
+            logger_.info(String.format("迭代轮数: %d", it));
+            // DividePhase =============================================================================================
+            {
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
+                long divideStartTime = System.currentTimeMillis();
+                // 首先对顶点进行一个编号重排
+                randomPermutation();
+                // 初始化F数组, 用于存储每个顶点的shingle值
+                int[] F_temp = new int[n];
+                for (int A = 0; A < n; A++)
+                    F_temp[A] = -1;
+                for (int A = 0; A < n; A++) {
+                    // A不是一个超点
+                    if (I[A] == -1)
+                        continue;
+                    // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
+                    F_temp[A] = n;
+                    for (int v = I[A]; ; v = J[v]) {
+                        int fv = shingleValue(v);
+                        if (F_temp[A] > fv)
+                            F_temp[A] = fv;
+                        if (J[v] == -1)
+                            break;
+                    }
+                }
+                // 对分组进行排序
+                Integer[] G_temp = new Integer[n];
+                for (int i = 0; i < n; i++) G_temp[i] = i;
+                Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+                // 找到第一个组的开始index
+                int g_start_temp = 0;
+                while (F_temp[G_temp[g_start_temp]] == -1)
+                    g_start_temp++;
+
+                int g = -1;
+                ArrayList<Integer> Q = new ArrayList<>();
+                for (int i = g_start_temp; i < n; i++) {
+                    if (F_temp[G_temp[i]] != g) {
+                        if(Q.size() > 1){
+                            if(Q.size() <= maxGroupSize){
+                                groups.add(Q);
+                            } else {
+                                logger_.info(String.format("当前小组顶点数量为%d, 大于阈值%d, 进行顺序切割", Q.size(), maxGroupSize));
+                                List<List<Integer>> subGroups = sequentialSplitGroup(Q, maxGroupSize);
+                                for (List<Integer> subGroup : subGroups) {
+                                    if(subGroup.size() > 1) groups.add(subGroup);
+                                }
+                            }
+                        }
+                        g = F_temp[G_temp[i]];
+                        Q = new ArrayList<>();
+                    }
+                    Q.add(G_temp[i]);
+                }
+                if(Q.size() > 1) groups.add(Q);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+
+            // MergePhase ==============================================================================================
+            {
+                double threshold = 1 / ((it + 1) * 1.0);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
+                // 记录mergePhase的运行时间
+                long mergeStartTime = System.currentTimeMillis();
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
+                Map<Integer, Record> recordMap = new HashMap<>();
+                // 开始遍历每个组
+                for (List<Integer> group : groups) {
+                    long start = System.currentTimeMillis();
+                    int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
+                    HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
+                    int initial_size = hm.size();
+                    while (hm.size() > 1) {
+                        Random rand = new Random();
+                        // 从组内随机找到一个超点A
+                        int A = rand.nextInt(initial_size);
+                        if (hm.get(A) == null) continue;
+                        // 变量max记录最大的Jaccard_similarity
+                        double max = 0;
+                        // 变量idx记录最大Jaccard_similarity的那个顶点
+                        int idx = -1;
+                        // 遍历组内其他顶点，找到与A的Jaccard Similarity最大的那个顶点
+                        for (int j = 0; j < initial_size; j++) {
+                            if (hm.get(j) == null)
+                                continue;
+                            if (j == A) continue;
+                            double jaccard_similarity = computeJacSim(hm.get(A), hm.get(j));
+                            if (jaccard_similarity > max) {
+                                max = jaccard_similarity;
+                                idx = j;
+                            }
+                        }
+                        if (idx == -1) {
+                            hm.remove(A);
+                            continue;
+                        }
+                        // 这里做了一个交换，目的是把编号较大的顶点合并到编号较小的顶点里面
+                        if (group.get(A) > group.get(idx)) {
+                            int t = A;
+                            A = idx;
+                            idx = t;
+                        }
+                        // 计算两个顶点之间的合并收益
+                        double savings = computeSaving(hm.get(A), hm.get(idx), group.get(A), group.get(idx));
+                        if (savings >= threshold) {
+                            HashMap<Integer, Integer> w_update = updateW(hm.get(A), hm.get(idx));
+                            hm.replace(A, w_update);
+                            hm.remove(idx);
+                            updateSuperNode(group.get(A), group.get(idx));
+                            success += 1;
+                        } else {
+                            hm.remove(A);
+                        }
+                    }
+                    Double time = (System.currentTimeMillis() - start) / 1000.0;
+                    if (!recordMap.containsKey(group.size())) {
+                        Record r = new Record(group.size(), 1, success, time);
+                        recordMap.put(group.size(), r);
+                    } else {
+                        Record r = recordMap.get(group.size());
+                        r.add(1, success, time);
+                    }
+
+                }
+                it2Records.put(it, recordMap);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+            if (it % print_iteration_offset == 0) {
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
+                evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+            }
+        }
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+    }
+
+
+    public List<List<Integer>> hierarchicalSplitGroup(List<Integer> group, int maxGroupSize){
+        int group_size = group.size();
+
+        // 首先对顶点进行一个编号重排
+        randomPermutation();
+        // 初始化F数组, 用于存储每个顶点的shingle值
+        int[] F_temp = new int[group_size];
+        for (int A = 0; A < group_size; A++)
+            F_temp[A] = -1;
+        for (int A = 0; A < group_size; A++) {
+            // A不是一个超点
+            if (I[A] == -1)
+                continue;
+            // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
+            F_temp[A] = n;
+            for (int v = I[A]; ; v = J[v]) {
+                int fv = shingleValue(v);
+                if (F_temp[A] > fv)
+                    F_temp[A] = fv;
+                if (J[v] == -1)
+                    break;
+            }
+        }
+        // 对分组进行排序
+        Integer[] G_temp = new Integer[group_size];
+        for (int i = 0; i < group_size; i++) G_temp[i] = i;
+        Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+
+        // 找到第一个组的开始index
+        int g_start_temp = 0;
+        while (F_temp[G_temp[g_start_temp]] == -1)
+            g_start_temp++;
+
+        int g = -1;
+        List<List<Integer>> groups = new ArrayList<>();
+        ArrayList<Integer> Q = new ArrayList<>();
+        for (int i = g_start_temp; i < group_size; i++) {
+            if (F_temp[G_temp[i]] != g) {
+                if(Q.size() > 1){
+                    groups.add(Q);
+                }
+                g = F_temp[G_temp[i]];
+                Q = new ArrayList<>();
+            }
+            Q.add(group.get(G_temp[i]));
+        }
+        if(Q.size() > 1) groups.add(Q);
+
+        return groups;
+    }
+
+    /**
+     * 顺序切割的分组方案
+     * @param iteration 迭代次数
+     * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
+     */
+    public void hierarchicalTest(int iteration, int print_iteration_offset, int maxGroupSize){
+        long startTime = System.currentTimeMillis();
+        Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
+        for (int it = 1; it <= iteration; it++) {
+            List<List<Integer>> groups = new ArrayList<>();
+            logger_.info(String.format("迭代轮数: %d", it));
+            // DividePhase =============================================================================================
+            {
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
+                long divideStartTime = System.currentTimeMillis();
+                // 首先对顶点进行一个编号重排
+                randomPermutation();
+                // 初始化F数组, 用于存储每个顶点的shingle值
+                int[] F_temp = new int[n];
+                for (int A = 0; A < n; A++)
+                    F_temp[A] = -1;
+                for (int A = 0; A < n; A++) {
+                    // A不是一个超点
+                    if (I[A] == -1)
+                        continue;
+                    // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
+                    F_temp[A] = n;
+                    for (int v = I[A]; ; v = J[v]) {
+                        int fv = shingleValue(v);
+                        if (F_temp[A] > fv)
+                            F_temp[A] = fv;
+                        if (J[v] == -1)
+                            break;
+                    }
+                }
+                // 对分组进行排序
+                Integer[] G_temp = new Integer[n];
+                for (int i = 0; i < n; i++) G_temp[i] = i;
+                Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+                // 找到第一个组的开始index
+                int g_start_temp = 0;
+                while (F_temp[G_temp[g_start_temp]] == -1)
+                    g_start_temp++;
+
+                int g = -1;
+                ArrayList<Integer> Q = new ArrayList<>();
+                for (int i = g_start_temp; i < n; i++) {
+                    if (F_temp[G_temp[i]] != g) {
+                        if(Q.size() > 1){
+                            if(Q.size() <= maxGroupSize){
+                                groups.add(Q);
+                            } else {
+                                logger_.info(String.format("当前小组顶点数量为%d, 大于阈值%d, 进行层次切割", Q.size(), maxGroupSize));
+                                List<List<Integer>> subGroups = hierarchicalSplitGroup(Q, maxGroupSize);
+                                for (List<Integer> subGroup : subGroups) {
+                                    if(subGroup.size() > 1) groups.add(subGroup);
+                                }
+                            }
+                        }
+                        g = F_temp[G_temp[i]];
+                        Q = new ArrayList<>();
+                    }
+                    Q.add(G_temp[i]);
+                }
+                if(Q.size() > 1) groups.add(Q);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+
+            // MergePhase ==============================================================================================
+            {
+                double threshold = 1 / ((it + 1) * 1.0);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
+                // 记录mergePhase的运行时间
+                long mergeStartTime = System.currentTimeMillis();
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
+                Map<Integer, Record> recordMap = new HashMap<>();
+                // 开始遍历每个组
+                for (List<Integer> group : groups) {
+                    long start = System.currentTimeMillis();
+                    int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
+                    HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
+                    int initial_size = hm.size();
+                    while (hm.size() > 1) {
+                        Random rand = new Random();
+                        // 从组内随机找到一个超点A
+                        int A = rand.nextInt(initial_size);
+                        if (hm.get(A) == null) continue;
+                        // 变量max记录最大的Jaccard_similarity
+                        double max = 0;
+                        // 变量idx记录最大Jaccard_similarity的那个顶点
+                        int idx = -1;
+                        // 遍历组内其他顶点，找到与A的Jaccard Similarity最大的那个顶点
+                        for (int j = 0; j < initial_size; j++) {
+                            if (hm.get(j) == null)
+                                continue;
+                            if (j == A) continue;
+                            double jaccard_similarity = computeJacSim(hm.get(A), hm.get(j));
+                            if (jaccard_similarity > max) {
+                                max = jaccard_similarity;
+                                idx = j;
+                            }
+                        }
+                        if (idx == -1) {
+                            hm.remove(A);
+                            continue;
+                        }
+                        // 这里做了一个交换，目的是把编号较大的顶点合并到编号较小的顶点里面
+                        if (group.get(A) > group.get(idx)) {
+                            int t = A;
+                            A = idx;
+                            idx = t;
+                        }
+                        // 计算两个顶点之间的合并收益
+                        double savings = computeSaving(hm.get(A), hm.get(idx), group.get(A), group.get(idx));
+                        if (savings >= threshold) {
+                            HashMap<Integer, Integer> w_update = updateW(hm.get(A), hm.get(idx));
+                            hm.replace(A, w_update);
+                            hm.remove(idx);
+                            updateSuperNode(group.get(A), group.get(idx));
+                            success += 1;
+                        } else {
+                            hm.remove(A);
+                        }
+                    }
+                    Double time = (System.currentTimeMillis() - start) / 1000.0;
+                    if (!recordMap.containsKey(group.size())) {
+                        Record r = new Record(group.size(), 1, success, time);
+                        recordMap.put(group.size(), r);
+                    } else {
+                        Record r = recordMap.get(group.size());
+                        r.add(1, success, time);
+                    }
+
+                }
+                it2Records.put(it, recordMap);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
+            }
+            // End =====================================================================================================
+            if (it % print_iteration_offset == 0) {
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
+                evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+            }
+        }
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+    }
+
+    /**
      * @param iteration              迭代次数
      * @param print_iteration_offset 每执行多少次迭代就进行一次 encode 和 evaluate 进行结果输出
      */
     @Override
     public void run(int iteration, int print_iteration_offset) {
-        System.out.println("----------------------------------- SWeG ALGORITHM ----------------------------------------");
-        for (int it = 1; it <= iteration; it++) {
-            System.out.println("\n------------------------- ITERATION " + it);
-            double threshold = 1 / ((it + 1) * 1.0);
-//            double Threshold = 0.5 - it * 0.05;
-            System.out.println(String.format("@Time: %5f seconds", dividePhase()));
+//        originTest(iteration, print_iteration_offset);
+//        sequentialTest(iteration, print_iteration_offset, 2000);
+        hierarchicalTest(iteration, print_iteration_offset, 2000);
+//        long starTime = System.currentTimeMillis();
+//        for (int it = 1; it <= iteration; it++) {
+//            logger_.info(String.format("迭代轮数: %d", it));
+//            double threshold = 1 / ((it + 1) * 1.0);
+//            logger_.info(String.format("分组结束, 花费时间 %5f seconds", dividePhase()));
 //            System.out.println(String.format("@Time: %5f seconds", mergePhase(threshold)));
-            System.out.println(String.format("@Time: %5f seconds", mergePhase_test(threshold)));
-            if (it % print_iteration_offset == 0) {
-                System.out.println(String.format("@Time: %5f seconds", encodePhase()));
-                evaluatePhase();
-            }
-        }
-
-        int i = 1;
-        for (Double m : merged_success) {
-            System.out.println("Iteration " + i + ", average merged success pairs:" + m);
-            i++;
-        }
+//            logger_.info(String.format("合并结束, 花费时间 %5f seconds", mergePhase_test(it, threshold)));
+//            if (it % print_iteration_offset == 0) {
+//                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
+//                evaluatePhase();
+//                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
+//            }
+//        }
+//
+//        for (Integer it : total_groups_size.keySet()) {
+//            int max = 0;
+//            for (Integer length : total_groups_size.get(it)) {
+//                if (max <= length) {
+//                    max = length;
+//                }
+//            }
+//            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+//        }
+//        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
     }
 }

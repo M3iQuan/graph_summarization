@@ -1195,19 +1195,20 @@ public class LDME extends Summary{
     }
 
     /**
+     * 测试: 通过测试
      * 记录origin方法中小组的大小分布和合并成功次数
      * @param iteration 迭代次数
      * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
      */
     public void originTest(int iteration, int print_iteration_offset) {
-        System.out.println("----------------------------------- ORIGIN ALGORITHM ---------------------------------------");
+        long startTime = System.currentTimeMillis();
         Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
         for (int it = 1; it <= iteration; it++) {
             List<List<Integer>> groups = new ArrayList<>();
-            System.out.println("\n------------------------- ITERATION " + it);
+            logger_.info(String.format("迭代轮数: %d", it));
             // DividePhase =============================================================================================
             {
-                System.out.println("# Divide Phase");
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
                 long divideStartTime = System.currentTimeMillis();
                 int k_bins = signatureLength;
                 if (n % k_bins != 0) {
@@ -1252,22 +1253,26 @@ public class LDME extends Summary{
                     Q.add(G_temp[i]);
                 }
                 if(Q.size() > 1) groups.add(Q);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - divideStartTime) / 1000.0);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
             }
             // End =====================================================================================================
 
             // MergePhase ==============================================================================================
             {
                 double threshold = 1 / ((it + 1) * 1.0);
-                System.out.println("# Merge Phase");
-                System.out.printf("Threshold=%5f%n", threshold);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
                 // 记录mergePhase的运行时间
                 long mergeStartTime = System.currentTimeMillis();
-                // 开始遍历每个组
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
                 Map<Integer, Record> recordMap = new HashMap<>();
+                // 开始遍历每个组
                 for (List<Integer> group : groups) {
                     long start = System.currentTimeMillis();
                     int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
                     HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
                     int initial_size = hm.size();
                     while (hm.size() > 1) {
@@ -1323,15 +1328,26 @@ public class LDME extends Summary{
 
                 }
                 it2Records.put(it, recordMap);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - mergeStartTime) / 1000.0);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
             }
             // End =====================================================================================================
             if (it % print_iteration_offset == 0) {
-                System.out.printf("@Time: %5f seconds%n", encodePhase_new());
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
                 evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
             }
         }
-        outputResult(it2Records, "origin", 1);
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+//        outputResult(it2Records, "origin", 1);
     }
 
     /**
@@ -2007,16 +2023,16 @@ public class LDME extends Summary{
      * @param iteration 迭代次数
      * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
      */
-    public void sequentialTest(int iteration, int print_iteration_offset) {
-        System.out.println("---------------------------------- SEQUENTIAL ALGORITHM ------------------------------------");
+    public void sequentialTest(int iteration, int print_iteration_offset,int maxGroupSize) {
+        long startTime = System.currentTimeMillis();
+        logger_.info(String.format("采用顺序切割方案, 对小组顶点数量大于%d的小组进行切割", maxGroupSize));
         Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
         for (int it = 1; it <= iteration; it++) {
             List<List<Integer>> groups = new ArrayList<>();
-            System.out.println("\n------------------------- ITERATION " + it);
+            logger_.info(String.format("迭代轮数: %d", it));
             // DividePhase =============================================================================================
             {
-                int maxGroupSize = 1000;
-                System.out.println("# Divide Phase");
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
                 long divideStartTime = System.currentTimeMillis();
                 int k_bins = signatureLength;
                 if (n % k_bins != 0) {
@@ -2058,6 +2074,7 @@ public class LDME extends Summary{
                             if (Q.size() <= maxGroupSize) {
                                 groups.add(Q);
                             } else {
+                                logger_.info(String.format("当前小组顶点数量为%d, 大于阈值%d, 进行顺序切割", Q.size(), maxGroupSize));
                                 List<List<Integer>> subGroups = sequentialSplitGroup(Q, maxGroupSize);
                                 for (List<Integer> subGroup : subGroups) {
                                     if(subGroup.size() > 1) groups.add(subGroup);
@@ -2070,22 +2087,26 @@ public class LDME extends Summary{
                     Q.add(G_temp[i]);
                 }
                 if(Q.size() > 1) groups.add(Q);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - divideStartTime) / 1000.0);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
             }
             // End =====================================================================================================
 
             // MergePhase ==============================================================================================
             {
                 double threshold = 1 / ((it + 1) * 1.0);
-                System.out.println("# Merge Phase");
-                System.out.printf("Threshold=%5f%n", threshold);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
                 // 记录mergePhase的运行时间
                 long mergeStartTime = System.currentTimeMillis();
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
                 // 开始遍历每个组
                 Map<Integer, Record> recordMap = new HashMap<>();
                 for (List<Integer> group : groups) {
                     long start = System.currentTimeMillis();
                     int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
                     HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
                     int initial_size = hm.size();
                     while (hm.size() > 1) {
@@ -2141,15 +2162,26 @@ public class LDME extends Summary{
 
                 }
                 it2Records.put(it, recordMap);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - mergeStartTime) / 1000.0);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
             }
             // End =====================================================================================================
             if (it % print_iteration_offset == 0) {
-                System.out.printf("@Time: %5f seconds%n", encodePhase_new());
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
                 evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
             }
         }
-        outputResult(it2Records, "sequential", 1);
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+//        outputResult(it2Records, "sequential", 1);
     }
 
     /**
@@ -2157,16 +2189,16 @@ public class LDME extends Summary{
      * @param iteration 迭代次数
      * @param print_iteration_offset 每隔多少次迭代就进行Encode一次查看压缩率
      */
-    public void hierarchicalTest(int iteration, int print_iteration_offset) {
-        System.out.println("---------------------------------- HIERARCHICAL ALGORITHM ----------------------------------");
+    public void hierarchicalTest(int iteration, int print_iteration_offset, int maxGroupSize) {
+        long startTime = System.currentTimeMillis();
+        logger_.info(String.format("采用层次切割方案, 对小组顶点数量大于%d的小组进行切割", maxGroupSize));
         Map<Integer, Map<Integer, Record>> it2Records = new HashMap<>();
         for (int it = 1; it <= iteration; it++) {
             List<List<Integer>> groups = new ArrayList<>();
-            System.out.println("\n------------------------- ITERATION " + it);
+            logger_.info(String.format("迭代轮数: %d", it));
             // DividePhase =============================================================================================
             {
-                int maxGroupSize = 1000;
-                System.out.println("# Divide Phase");
+                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
                 long divideStartTime = System.currentTimeMillis();
                 int k_bins = signatureLength;
                 if (n % k_bins != 0) {
@@ -2211,14 +2243,12 @@ public class LDME extends Summary{
                                 groups.add(Q);
                             } else {
                                 if(Q.size() > before_max_group) before_max_group = Q.size();
-                                System.out.print("group contain " + Q.size() + " nodes divide into more groups:");
-                                List<List<Integer>> subGroups = hierarchicalDivide(2*signatureLength, Q);
+                                logger_.info(String.format("当前小组顶点数量为%d, 大于阈值%d, 进行层次切割", Q.size(), maxGroupSize));
+                                List<List<Integer>> subGroups = hierarchicalDivide(3*signatureLength, Q);
                                 for (List<Integer> subGroup : subGroups) {
-                                    System.out.print(subGroup.size() + ",");
                                     if(subGroup.size() > 1) groups.add(subGroup);
                                     if(subGroup.size() > after_max_group) after_max_group = subGroup.size();
                                 }
-                                System.out.println();
                             }
                         }
                         g = F_OPH_temp[G_temp[i]];
@@ -2230,23 +2260,26 @@ public class LDME extends Summary{
                     groups.add(Q);
                     if(Q.size() > before_max_group) before_max_group = Q.size();
                 }
-                System.out.println("Before max group size:" + before_max_group + ", after max group size:" + after_max_group);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - divideStartTime) / 1000.0);
+                logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
             }
             // End =====================================================================================================
 
             // MergePhase ==============================================================================================
             {
                 double threshold = 1 / ((it + 1) * 1.0);
-                System.out.println("# Merge Phase");
-                System.out.printf("Threshold=%5f%n", threshold);
+                logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
                 // 记录mergePhase的运行时间
                 long mergeStartTime = System.currentTimeMillis();
+                // 记录迭代次数i的所有size>2的组数量
+                if(!total_groups_size.containsKey(it))
+                    total_groups_size.put(it, new ArrayList<>());
                 // 开始遍历每个组
                 Map<Integer, Record> recordMap = new HashMap<>();
                 for (List<Integer> group : groups) {
                     long start = System.currentTimeMillis();
                     int success = 0;
+                    // group_size >= 2时，记录下group_size
+                    total_groups_size.get(it).add(group.size());
                     HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
                     int initial_size = hm.size();
                     while (hm.size() > 1) {
@@ -2302,15 +2335,26 @@ public class LDME extends Summary{
 
                 }
                 it2Records.put(it, recordMap);
-                System.out.printf("@Time: %5f seconds%n", (System.currentTimeMillis() - mergeStartTime) / 1000.0);
+                logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
             }
             // End =====================================================================================================
             if (it % print_iteration_offset == 0) {
-                System.out.printf("@Time: %5f seconds%n", encodePhase_new());
+                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
                 evaluatePhase();
+                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
             }
         }
-        outputResult(it2Records, "hierarchical.txt", 1);
+        for (Integer it : total_groups_size.keySet()) {
+            int max = 0;
+            for (Integer length : total_groups_size.get(it)) {
+                if (max <= length) {
+                    max = length;
+                }
+            }
+            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+        }
+        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
+//        outputResult(it2Records, "hierarchical.txt", 1);
     }
 
     /**
@@ -2338,28 +2382,32 @@ public class LDME extends Summary{
 //            }
 //        }
 //        System.out.println("----------------------------------- LDME ALGORITHM ----------------------------------------");
-        long starTime = System.currentTimeMillis();
-        for (int it = 1; it <= iteration; it++) {
-            logger_.info(String.format("迭代轮数: %d", it));
-            double threshold = 1 / ((it + 1) * 1.0);
-            logger_.info(String.format("分组结束, 花费时间 %5f seconds", dividePhase()));
-            logger_.info(String.format("合并结束, 花费时间 %5f seconds", mergePhase_test2(it, threshold)));
-            if (it % print_iteration_offset == 0) {
-                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
-                evaluatePhase();
-                testRecoverNeighbors(n, "test");
-            }
-        }
-        for (Integer it : total_groups_size.keySet()) {
-            int max = 0;
-            for (Integer length : total_groups_size.get(it)) {
-                if (max <= length) {
-                    max = length;
-                }
-            }
-            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
-        }
-        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
+//        originTest(iteration, print_iteration_offset);
+//        sequentialTest(iteration, print_iteration_offset, 500);
+        hierarchicalTest(iteration, print_iteration_offset, 2000);
+//        long starTime = System.currentTimeMillis();
+//        for (int it = 1; it <= iteration; it++) {
+//            logger_.info(String.format("迭代轮数: %d", it));
+//            double threshold = 1 / ((it + 1) * 1.0);
+//            logger_.info(String.format("分组结束, 花费时间 %5f seconds", dividePhase()));
+//            logger_.info(String.format("合并结束, 花费时间 %5f seconds", mergePhase_test2(it, threshold)));
+//            if (it % print_iteration_offset == 0) {
+//                logger_.info(String.format("编码结束, 花费时间 %5f seconds", encodePhase_test()));
+//                evaluatePhase();
+//                logger_.info(String.format("到这里, 花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
+//                testRecoverNeighbors(n, "test");
+//            }
+//        }
+//        for (Integer it : total_groups_size.keySet()) {
+//            int max = 0;
+//            for (Integer length : total_groups_size.get(it)) {
+//                if (max <= length) {
+//                    max = length;
+//                }
+//            }
+//            logger_.info(String.format("迭代次数 %d: 小组最大顶点数量=%d", it, max));
+//        }
+//        logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - starTime) / 1000.0));
 
 //        int i = 1;
 //        for (Double m : merged_success) {
