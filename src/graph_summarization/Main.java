@@ -5,9 +5,10 @@ import org.slf4j.LoggerFactory;
 
 public class Main {
 
-    public static void testSWeG(String basename, int iteration, int print_iteration_offset) throws Exception{
+    public static void testSWeG(String basename, int iteration, int print_iteration_offset, int signatureLength) throws Exception{
         // 使用范型的方式，声明一个父类Summary,指向一个SWeG算法对象
-        Summary S = new SWeG(basename);
+//        Summary S = new SWeG(basename);
+        Summary S = new SWeG(basename, signatureLength);
         // 调用run方法运行整个压缩算法
         S.run(iteration, print_iteration_offset);
     }
@@ -46,7 +47,7 @@ public class Main {
                 testLDME(basename, iteration, print_iteration_offset, signatureLength);
                 break;
             case "SWeG":
-                testSWeG(basename, iteration, print_iteration_offset);
+                testSWeG(basename, iteration, print_iteration_offset, signatureLength);
                 break;
             case "Greedy":
                 testGreedy(basename, iteration, print_iteration_offset);

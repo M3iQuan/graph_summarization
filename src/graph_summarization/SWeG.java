@@ -22,6 +22,8 @@ public class SWeG extends  Summary{
     ArrayList<Double> merged_success;
     HashMap<Integer, ArrayList<Integer>> total_groups_size;
 
+    int signatureLength;
+
     /**
      * 构造函数，继承了Summary父类的构造函数，同时初始化自己的数据结构
      *
@@ -30,6 +32,19 @@ public class SWeG extends  Summary{
      */
     public SWeG(String basename) throws Exception {
         super(basename);
+        merged_success = new ArrayList<>();
+        total_groups_size = new HashMap<>();
+    }
+
+    /**
+     * 构造函数，继承了Summary父类的构造函数，同时初始化自己的数据结构
+     *
+     * @param basename 数据集的基本名字
+     * @throws Exception
+     */
+    public SWeG(String basename, int signatureLength) throws Exception {
+        super(basename);
+        this.signatureLength = signatureLength;
         merged_success = new ArrayList<>();
         total_groups_size = new HashMap<>();
     }
@@ -68,6 +83,61 @@ public class SWeG extends  Summary{
             }
         }
         return f_u;
+    }
+
+    /**
+     * 传入参数k和随机生成的数组D, 为超点A计算其LSH签名, 使用的是单枚举算法
+     * @param k LSH签名的长度
+     * @param A 超点A的编号
+     * @param rot_direction 随机生成的数组D
+     * @return 返回超点A的LSH签名对象，为OnePermHashSig
+     */
+    public OnePermHashSig generateSignature(int k, int A, int[] rot_direction){
+        // 通过参数k,确定签名的块数k_bins 和 每一块的长度 bin_size
+        int k_bins = k;
+        int bin_size = n / k_bins;
+        if (n % k_bins != 0) { k_bins = k_bins + 1; }
+        OnePermHashSig hashSig = new OnePermHashSig(k_bins);
+
+        // A不是一个超点
+        if (I[A] == -1) return hashSig;
+        // 遍历超点的每个顶点v
+        for (int v = I[A]; ; v=J[v]) {
+            int[] neighbours = neighbors_[v];
+//            int[] neighbours = Gr.successorArray(v);
+            // 遍历顶点v的每个邻居j
+            for (int neighbour : neighbours) {
+                // 得到邻居j重排后的id
+                int permuted_h = h[neighbour];
+                // 以及在第几个bin
+                int permuted_bin = permuted_h / bin_size;
+                // 如果b_i==-1(即还没设置)或者比b_i还小的索引 (permuted_h%bin_size) 存在顶点，则重新设置b_i
+                if (hashSig.sig[permuted_bin] == -1 || permuted_h % bin_size < hashSig.sig[permuted_bin]) {
+                    hashSig.sig[permuted_bin] = permuted_h % bin_size;
+                }
+            }
+            // 遍历完超点A的所有顶点就直接退出
+            if(J[v]==-1) break;
+        }
+
+        // 开始处理块b_i是empty的情况，即rotation
+        for (int A_bin = 0; A_bin < k_bins; A_bin++) {
+            int direction = rot_direction[A_bin];
+            // 如果b_i还没设置, 则利用rot_direction来确定往哪边采样
+            if (hashSig.sig[A_bin] == -1) {
+                int i = (A_bin + direction) % k_bins;
+                if (i < 0) { i += k_bins; }
+                int counter = 0;
+                while (hashSig.sig[i] == -1 && counter < k_bins) {
+                    i = (i + direction) % k_bins;
+                    if (i < 0) { i += k_bins; }
+                    counter++;
+                }
+                hashSig.sig[A_bin] = hashSig.sig[i];
+            }
+        }
+
+        return hashSig;
     }
 
     /**
@@ -669,54 +739,96 @@ public class SWeG extends  Summary{
     }
 
 
-    public List<List<Integer>> hierarchicalSplitGroup(List<Integer> group, int maxGroupSize){
+    /**
+     * 对于某个小组内的顶点进行分组
+     * @param group 需要再进行划分的小组
+     * @return 返回生成的组，每一个ArrayList都是一组，组内元素是超点的编号
+     */
+    public List<List<Integer>> hierarchicalSplitGroup(List<Integer> group, String method){
         int group_size = group.size();
+        logger_.info(String.format("采用%s方式进行层次分组, 当前小组顶点数量为%d", method, group_size));
 
-        // 首先对顶点进行一个编号重排
-        randomPermutation();
-        // 初始化F数组, 用于存储每个顶点的shingle值
-        int[] F_temp = new int[group_size];
-        for (int A = 0; A < group_size; A++)
-            F_temp[A] = -1;
-        for (int A = 0; A < group_size; A++) {
-            // A不是一个超点
-            if (I[A] == -1)
-                continue;
-            // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
-            F_temp[A] = n;
-            for (int v = I[A]; ; v = J[v]) {
-                int fv = shingleValue(v);
-                if (F_temp[A] > fv)
-                    F_temp[A] = fv;
-                if (J[v] == -1)
-                    break;
-            }
-        }
-        // 对分组进行排序
-        Integer[] G_temp = new Integer[group_size];
-        for (int i = 0; i < group_size; i++) G_temp[i] = i;
-        Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
-
-        // 找到第一个组的开始index
-        int g_start_temp = 0;
-        while (F_temp[G_temp[g_start_temp]] == -1)
-            g_start_temp++;
-
-        int g = -1;
         List<List<Integer>> groups = new ArrayList<>();
-        ArrayList<Integer> Q = new ArrayList<>();
-        for (int i = g_start_temp; i < group_size; i++) {
-            if (F_temp[G_temp[i]] != g) {
-                if(Q.size() > 1){
-                    groups.add(Q);
-                }
-                g = F_temp[G_temp[i]];
-                Q = new ArrayList<>();
+        // 接着对顶点进行一个编号重排
+        randomPermutation();
+        if (method.equals("LSH")) {
+            int k_bins = signatureLength;
+            if(n % signatureLength != 0) { k_bins = k_bins + 1; }
+            int[] rot_direction = new int[k_bins];
+            Random random = new Random();
+            for (int i = 0; i < k_bins; i++) {
+                if(random.nextBoolean()) { rot_direction[i] = 1; }
+                else { rot_direction[i] = -1; }
             }
-            Q.add(group.get(G_temp[i]));
+            // 创建F_OPH数组, 用于存储每个顶点的LSH签名
+            OnePermHashSig[] F_OPH_temp = new OnePermHashSig[group_size];
+            for (int i = 0; i < group_size; i++) {
+                F_OPH_temp[i] = generateSignature(signatureLength, group.get(i), rot_direction);
+            }
+            // 对分组进行排序
+            Integer[] G_temp = new Integer[group_size];
+            for (int i = 0; i < group_size; i++) G_temp[i] = i;
+            Arrays.sort(G_temp, (o1, o2) -> OnePermHashSig.compare(F_OPH_temp[o1], F_OPH_temp[o2]));
+            // 找到第一个组的开始index
+            int g_start_temp = 0;
+            while (F_OPH_temp[G_temp[g_start_temp]].unassigned())
+                g_start_temp++;
+            // 计算每个组包含哪些超点
+            OnePermHashSig g = new OnePermHashSig(k_bins);
+            ArrayList<Integer> Q = new ArrayList<>();
+            for (int i = g_start_temp; i < group_size; i++) {
+                // 如果遍历到当前顶点的LSH签名与前面的签名不一样，说明前面组的所有顶点都被识别出来，需要增加新的一组了
+                if (!F_OPH_temp[G_temp[i]].equals(g)) {
+                    // 只返回顶点数量大于1的组
+                    if(Q.size() > 1) groups.add(Q);
+                    g = F_OPH_temp[G_temp[i]];
+                    Q = new ArrayList<>();
+                }
+                Q.add(group.get(G_temp[i]));
+            }
+            if(Q.size() > 1) groups.add(Q);
         }
-        if(Q.size() > 1) groups.add(Q);
-
+        else if (method.equals("Shingle")) {
+            // 初始化F数组, 用于存储每个顶点的shingle值
+            int[] F_temp = new int[group_size];
+            for (int A = 0; A < group_size; A++)
+                F_temp[A] = -1;
+            for (int A = 0; A < group_size; A++) {
+                // A不是一个超点
+                if (I[A] == -1)
+                    continue;
+                // 将超点A的shingle值先初始化成最大值，然后再逐渐通过超点包含的所有顶点的shingle值逐渐下降
+                F_temp[A] = n;
+                for (int v = I[A]; ; v = J[v]) {
+                    int fv = shingleValue(v);
+                    if (F_temp[A] > fv)
+                        F_temp[A] = fv;
+                    if (J[v] == -1)
+                        break;
+                }
+            }
+            // 对分组进行排序
+            Integer[] G_temp = new Integer[group_size];
+            for (int i = 0; i < group_size; i++) G_temp[i] = i;
+            Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+            // 找到第一个组的开始index
+            int g_start_temp = 0;
+            while (F_temp[G_temp[g_start_temp]] == -1)
+                g_start_temp++;
+            int g = -1;
+            ArrayList<Integer> Q = new ArrayList<>();
+            for (int i = g_start_temp; i < group_size; i++) {
+                if (F_temp[G_temp[i]] != g) {
+                    if(Q.size() > 1){
+                        groups.add(Q);
+                    }
+                    g = F_temp[G_temp[i]];
+                    Q = new ArrayList<>();
+                }
+                Q.add(group.get(G_temp[i]));
+            }
+            if(Q.size() > 1) groups.add(Q);
+        }
         return groups;
     }
 
@@ -733,7 +845,7 @@ public class SWeG extends  Summary{
             logger_.info(String.format("迭代轮数: %d", it));
             // DividePhase =============================================================================================
             {
-                logger_.info("开始分组, 采用的是Local Sensitive Hash方法");
+                logger_.info("开始分组, 采用的是Shingle方法");
                 long divideStartTime = System.currentTimeMillis();
                 // 首先对顶点进行一个编号重排
                 randomPermutation();
@@ -773,7 +885,7 @@ public class SWeG extends  Summary{
                                 groups.add(Q);
                             } else {
                                 logger_.info(String.format("当前小组顶点数量为%d, 大于阈值%d, 进行层次切割", Q.size(), maxGroupSize));
-                                List<List<Integer>> subGroups = hierarchicalSplitGroup(Q, maxGroupSize);
+                                List<List<Integer>> subGroups = hierarchicalSplitGroup(Q, "LSH");
                                 for (List<Integer> subGroup : subGroups) {
                                     if(subGroup.size() > 1) groups.add(subGroup);
                                 }
@@ -889,7 +1001,7 @@ public class SWeG extends  Summary{
     public void run(int iteration, int print_iteration_offset) {
 //        originTest(iteration, print_iteration_offset);
 //        sequentialTest(iteration, print_iteration_offset, 2000);
-        hierarchicalTest(iteration, print_iteration_offset, 2000);
+        hierarchicalTest(iteration, print_iteration_offset, 500);
 //        long starTime = System.currentTimeMillis();
 //        for (int it = 1; it <= iteration; it++) {
 //            logger_.info(String.format("迭代轮数: %d", it));

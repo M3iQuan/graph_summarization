@@ -2383,8 +2383,8 @@ public class LDME extends Summary{
 //        }
 //        System.out.println("----------------------------------- LDME ALGORITHM ----------------------------------------");
 //        originTest(iteration, print_iteration_offset);
-//        sequentialTest(iteration, print_iteration_offset, 500);
-        hierarchicalTest(iteration, print_iteration_offset, 2000);
+        sequentialTest(iteration, print_iteration_offset, 2000);
+//        hierarchicalTest(iteration, print_iteration_offset, 2000);
 //        long starTime = System.currentTimeMillis();
 //        for (int it = 1; it <= iteration; it++) {
 //            logger_.info(String.format("迭代轮数: %d", it));
