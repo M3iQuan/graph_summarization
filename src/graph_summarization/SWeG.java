@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class SWeG extends  Summary{
 
     // 用于对顶点的重新编号
-    int[] h;
+//    int[] h;
     // shingle数组，在顶点分组时使用
     int[] F;
     // 排序后的组别数组，满足 F[G[i]] <= F[G[i+1]] 即相同F值的在附近安排在同一个组内
@@ -26,7 +26,6 @@ public class SWeG extends  Summary{
 
     /**
      * 构造函数，继承了Summary父类的构造函数，同时初始化自己的数据结构
-     *
      * @param basename 数据集的基本名字
      * @throws Exception
      */
@@ -50,39 +49,11 @@ public class SWeG extends  Summary{
     }
 
     /**
-     * 对顶点的一次重新编号 h: |V| -> |V|
+     * 设置算法执行过程的Local Sensitive Hash的签名长度
+     * @param signatureLength 签名长度
      */
-    private void randomPermutation() {
-        h = new int[n];
-        for (int i = 0; i < n; i++) {
-            h[i] = i;
-        }
-        Random rnd = new Random();
-        rnd = ThreadLocalRandom.current();
-        for (int i = h.length - 1; i > 0; i--) {
-            int index = rnd.nextInt(i + 1);
-            int a = h[index];
-            h[index] = h[i];
-            h[i] = a;
-        }
-    }
-
-    /**
-     * 返回顶点u的shingle值, 方法是计算顶点集合 {u Union N(u)} 的最小 shingle 值
-     *
-     * @param u 顶点的编号
-     * @return
-     */
-    private int shingleValue(int u) {
-        int f_u = h[u];
-//        int[] neighbors = Gr.successorArray(u);
-        int[] neighbors = neighbors_[u];
-        for (int v : neighbors) {
-            if (f_u > h[v]) {
-                f_u = h[v];
-            }
-        }
-        return f_u;
+    public void setSignatureLength(int signatureLength) {
+        this.signatureLength = signatureLength;
     }
 
     /**

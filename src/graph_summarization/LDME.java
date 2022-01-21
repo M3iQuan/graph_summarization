@@ -10,7 +10,7 @@ import java.util.zip.Adler32;
 public class LDME extends Summary{
 
     // 用于对顶点的重新编号
-    int[] h;
+//    int[] h;
     // 哈希签名的长度
     int signatureLength;
     // 哈希签名数组，在顶点分组时使用
@@ -32,7 +32,17 @@ public class LDME extends Summary{
 
     /**
      * 构造函数，用于初始化一些共同的结构
-     *
+     * @param basename 数据集的基本名字
+     * @throws Exception 抛出异常
+     */
+    public LDME(String basename) throws Exception {
+        super(basename);
+        merged_success = new ArrayList<>();
+        total_groups_size = new HashMap<>();
+    }
+
+    /**
+     * 构造函数，用于初始化一些共同的结构
      * @param basename 数据集的基本名字
      * @throws Exception 抛出异常
      */
@@ -44,21 +54,11 @@ public class LDME extends Summary{
     }
 
     /**
-     * 对顶点的一次重新编号 h: |V| -> |V|
+     * 设置算法执行过程的Local Sensitive Hash的签名长度
+     * @param signatureLength 签名长度
      */
-    private void randomPermutation() {
-        h = new int[n];
-        for (int i = 0; i < n; i++) {
-            h[i] = i;
-        }
-        Random rnd = new Random();
-        rnd = ThreadLocalRandom.current();
-        for (int i = h.length - 1; i > 0; i--) {
-            int index = rnd.nextInt(i + 1);
-            int a = h[index];
-            h[index] = h[i];
-            h[i] = a;
-        }
+    public void setSignatureLength(int signatureLength) {
+        this.signatureLength = signatureLength;
     }
 
     /**
@@ -2355,6 +2355,27 @@ public class LDME extends Summary{
         }
         logger_.info(String.format("程序运行结束, 总花费时间 %5f seconds", (System.currentTimeMillis() - startTime) / 1000.0));
 //        outputResult(it2Records, "hierarchical.txt", 1);
+    }
+
+    public void originTest(String method, int iteration, int print_iteration_offset, int max_group_size){
+        long startTime = System.currentTimeMillis();
+        for (int it = 1; it <= iteration; it++) {
+            double threshold = 1 / ((it + 1) * 1.0);
+            List<List<Integer>> groups = new ArrayList<>();
+            if (method.equals("SWeG")) {
+                groups =  divide(max_group_size);
+            } else if (method.equals("LDME")) {
+                groups = divide(max_group_size, signatureLength);
+            } else {
+                logger_.info("没有这个算法, 请从 SWeG 和 LDME 中二选一");
+                break;
+            }
+        }
+
+    }
+
+    public void sequentialTest(String method, int iteration, int print_iteration_offset, int max_group_size){
+
     }
 
     /**

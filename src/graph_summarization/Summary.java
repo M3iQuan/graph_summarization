@@ -9,7 +9,9 @@ import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.image.AreaAveragingScaleFilter;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Summary {
     // webgraph 框架中的不变图对象，可以用来获取图的顶点和边属性
@@ -26,7 +28,8 @@ public class Summary {
     // 记录同属一个超点的下一个顶点是哪个，就像是链表的next指针，如 I[3]=9 表示和顶点3同处一个超点的下一个顶点是9
     int[] J;
 
-    // 记录超点是否是存在自环边
+    // 用于对顶点的重新编号
+    int[] h;
 
     // 用于记录每个超点的大小
     int[] supernode_sizes;
@@ -465,6 +468,120 @@ public class Summary {
     }
 
     /**
+     * 对顶点的一次重新编号 h: |V| -> |V|
+     */
+    protected void randomPermutation(){
+        h = new int[n];
+        for (int i = 0; i < n; i++) {
+            h[i] = i;
+        }
+        Random rnd = new Random();
+        rnd = ThreadLocalRandom.current();
+        for (int i = h.length - 1; i > 0; i--) {
+            int index = rnd.nextInt(i + 1);
+            int a = h[index];
+            h[index] = h[i];
+            h[i] = a;
+        }
+    }
+
+    /**
+     * 传入参数k和随机生成的数组D, 为超点A计算其LSH签名, 使用的是单枚举算法
+     * @param k LSH签名的长度
+     * @param A 超点A的编号
+     * @param rot_direction 随机生成的数组D
+     * @return 返回超点A的LSH签名对象，为OnePermHashSig
+     */
+    protected OnePermHashSig generateSignature(int k, int A, int[] rot_direction) {
+        // 通过参数k,确定签名的块数k_bins 和 每一块的长度 bin_size
+        int k_bins = k;
+        int bin_size = n / k_bins;
+        if (n % k_bins != 0) { k_bins = k_bins + 1; }
+        OnePermHashSig hashSig = new OnePermHashSig(k_bins);
+
+        // A不是一个超点
+        if (I[A] == -1) return hashSig;
+        // 遍历超点的每个顶点v
+        for (int v = I[A]; ; v=J[v]) {
+            int[] neighbours = neighbors_[v];
+//            int[] neighbours = Gr.successorArray(v);
+            // 遍历顶点v的每个邻居j
+            for (int neighbour : neighbours) {
+                // 得到邻居j重排后的id
+                int permuted_h = h[neighbour];
+                // 以及在第几个bin
+                int permuted_bin = permuted_h / bin_size;
+                // 如果b_i==-1(即还没设置)或者比b_i还小的索引 (permuted_h%bin_size) 存在顶点，则重新设置b_i
+                if (hashSig.sig[permuted_bin] == -1 || permuted_h % bin_size < hashSig.sig[permuted_bin]) {
+                    hashSig.sig[permuted_bin] = permuted_h % bin_size;
+                }
+            }
+            // 遍历完超点A的所有顶点就直接退出
+            if(J[v]==-1) break;
+        }
+
+        // 开始处理块b_i是empty的情况，即rotation
+        for (int A_bin = 0; A_bin < k_bins; A_bin++) {
+            int direction = rot_direction[A_bin];
+            // 如果b_i还没设置, 则利用rot_direction来确定往哪边采样
+            if (hashSig.sig[A_bin] == -1) {
+                int i = (A_bin + direction) % k_bins;
+                if (i < 0) { i += k_bins; }
+                int counter = 0;
+                while (hashSig.sig[i] == -1 && counter < k_bins) {
+                    i = (i + direction) % k_bins;
+                    if (i < 0) { i += k_bins; }
+                    counter++;
+                }
+                hashSig.sig[A_bin] = hashSig.sig[i];
+            }
+        }
+
+        return hashSig;
+    }
+
+    /**
+     * 为超点计算shingle签名
+     * @param A 超点A的编号
+     * @return 一个整数值
+     */
+    protected int generateSignature(int A){
+        // 将超点A的shingle值初始化成最大值
+        int shingle = n;
+        // A不是一个超点
+        if (I[A] == -1) return shingle;
+        // 逐个计算超点A所包含顶点的shingle值, 并确定超点A的shingle值
+        for (int u = I[A]; ; u = J[u]) {
+            // 当前计算的是顶点u的shingle值
+            int f_u = h[u];
+            for(int v : neighbors_[u]){
+                if(f_u > h[v]) f_u = h[v];
+            }
+            if (shingle > f_u)
+                shingle = f_u;
+            if (J[u] == -1)
+                break;
+        }
+        return shingle;
+    }
+
+    /**
+     * 返回顶点u的shingle值, 方法是计算顶点集合 {u Union N(u)} 的最小 shingle 值
+     * @param u 顶点的编号
+     * @return 一个整数值
+     */
+    protected int shingleValue(int u) {
+        int f_u = h[u];
+        int[] neighbors = neighbors_[u];
+        for (int v : neighbors) {
+            if (f_u > h[v]) {
+                f_u = h[v];
+            }
+        }
+        return f_u;
+    }
+
+    /**
      * 顶点初始化的阶段，Greedy算法需要进行重载
      */
     public double initialPhase(double threshold) {
@@ -476,6 +593,218 @@ public class Summary {
      */
     public double dividePhase() {
         return 0.0;
+    }
+
+    /**
+     * 顺序切割顶点数量大于max_group_size的小组
+     * @param group 顶点小组
+     * @param max_group_size 按max_group_size大小进行顺序切割小组
+     * @return 返回切割后的每个小组, 小组的最大顶点数量为max_group_size
+     */
+    public List<List<Integer>> splitGroup(List<Integer> group, int max_group_size) {
+        List<List<Integer>> groups = new ArrayList<>();
+        int group_size = group.size();
+        int num = group_size / max_group_size;
+        if(group_size % max_group_size != 0) num += 1;
+        for (int j = 0; j < num; j++) {
+            int start = j * max_group_size;
+            int end = Math.min((j + 1) * max_group_size, group_size);
+            List<Integer> subGroup = new ArrayList<>();
+            for (int k = start; k < end; k++) {
+                subGroup.add(group.get(k));
+            }
+            groups.add(subGroup);
+        }
+        return groups;
+    }
+    /**
+     * 默认分组, 采用的是shingle方式, 如果小组顶点数量大于max_group_size, 则采用顺序切割
+     * @param max_group_size 小组的最大顶点数量
+     * @return 一个List<List<>>, 里面的List存放了每个分组的顶点编号
+     */
+    public List<List<Integer>> divide(int max_group_size){
+        int num = n;
+        List<List<Integer>> groups = new ArrayList<>();
+        if (max_group_size > 0) {
+            logger_.info(String.format("开始分组, 采用的是Shingle方式, 对%d个顶点进行分组, 最大的小组顶点数量为%d", num, max_group_size));
+        } else {
+            logger_.info(String.format("开始分组, 采用的是Shingle方式, 对%d个顶点进行分组, 不限制顶点数量", num));
+        }
+        long divideStartTime = System.currentTimeMillis();
+        randomPermutation();
+        int[] F_temp = new int[num];
+        for(int A = 0; A < num; A++){
+            F_temp[A] = generateSignature(A);
+        }
+
+        Integer[] G_temp = new Integer[num];
+        for(int i = 0; i < num; i++) G_temp[i] = i;
+        Arrays.sort(G_temp, (o1, o2) -> Integer.compare(F_temp[o1], F_temp[o2]));
+
+        int g_start_temp = 0;
+        while(F_temp[G_temp[g_start_temp]] == -1)
+            g_start_temp++;
+        int g = -1;
+        ArrayList<Integer> Q = new ArrayList<>();
+        for (int i = g_start_temp; i < num; i++) {
+            if (F_temp[G_temp[i]] != g) {
+                if (Q.size() > 1) {
+                    if(max_group_size <= 0 || Q.size() <= max_group_size){
+                        groups.add(Q);
+                    } else {
+                        List<List<Integer>> subGroups = splitGroup(Q, max_group_size);
+                        for (List<Integer> subGroup : subGroups) {
+                            if(subGroup.size() > 1) groups.add(subGroup);
+                        }
+                    }
+                }
+                g = F_temp[G_temp[i]];
+                Q = new ArrayList<>();
+            }
+            Q.add(G_temp[i]);
+        }
+        if(Q.size() > 1){
+            if(max_group_size <= 0 || Q.size() <= max_group_size) {
+                groups.add(Q);
+            } else {
+                List<List<Integer>> subGroups = splitGroup(Q, max_group_size);
+                for (List<Integer> subGroup : subGroups) {
+                    if(subGroup.size() > 1) groups.add(subGroup);
+                }
+            }
+        }
+        logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
+        return groups;
+    }
+
+    /**
+     * 新的分组方式, 采用的是Local Sensitive Hash方式, 如果小组顶点数量大于max_group_size， 则采用顺序切割
+     * @param max_group_size 小组的最大顶点数量
+     * @param signature_length 签名长度
+     * @return 一个List<List<>>, 里面的List存放了每个分组的顶点编号
+     */
+    public List<List<Integer>> divide(int max_group_size, int signature_length){
+        int num = n;
+        List<List<Integer>> groups = new ArrayList<>();
+        if (max_group_size > 0) {
+            logger_.info(String.format("开始分组, 采用的是Local Sensitive Hash方式, 对%d个顶点进行分组, 最大的小组顶点数量为%d", num, max_group_size));
+        } else {
+            logger_.info(String.format("开始分组, 采用的是Local Sensitive Hash方式, 对%d个顶点进行分组, 不限制顶点数量", num));
+        }
+        long divideStartTime = System.currentTimeMillis();
+        int k_bins = signature_length;
+        if (n % k_bins != 0) {
+            k_bins = k_bins + 1;
+        }
+        // 首先生成长度为k_bins的一个数组用于辅助计算hash签名值
+        int[] rot_direction = new int[k_bins];
+        Random random = new Random();
+        for (int i = 0; i < k_bins; i++) {
+            if (random.nextBoolean()) {
+                rot_direction[i] = 1;
+            } else {
+                rot_direction[i] = -1;
+            }
+        }
+        randomPermutation();
+        OnePermHashSig[] F_temp = new OnePermHashSig[num];
+        for (int A = 0; A < num; A++) {
+            F_temp[A] = generateSignature(signature_length, A, rot_direction);
+        }
+        Integer[] G_temp = new Integer[num];
+        for (int i = 0; i < num; i++) G_temp[i] = i;
+        Arrays.sort(G_temp, (o1, o2) -> OnePermHashSig.compare(F_temp[o1], F_temp[o2]));
+        int g_start_temp = 0;
+        while (F_temp[G_temp[g_start_temp]].unassigned())
+            g_start_temp++;
+        OnePermHashSig g = new OnePermHashSig(k_bins);
+        ArrayList<Integer> Q = new ArrayList<>();
+        for (int i = g_start_temp; i < num; i++) {
+            if (F_temp[G_temp[i]] != g) {
+                if (Q.size() > 1) {
+                    if(max_group_size <= 0 || Q.size() <= max_group_size){
+                        groups.add(Q);
+                    } else {
+                        List<List<Integer>> subGroups = splitGroup(Q, max_group_size);
+                        for (List<Integer> subGroup : subGroups) {
+                            if(subGroup.size() > 1) groups.add(subGroup);
+                        }
+                    }
+                }
+                g = F_temp[G_temp[i]];
+                Q = new ArrayList<>();
+            }
+            Q.add(G_temp[i]);
+        }
+        if(Q.size() > 1){
+            if(max_group_size <= 0 || Q.size() <= max_group_size) {
+                groups.add(Q);
+            } else {
+                List<List<Integer>> subGroups = splitGroup(Q, max_group_size);
+                for (List<Integer> subGroup : subGroups) {
+                    if(subGroup.size() > 1) groups.add(subGroup);
+                }
+            }
+        }
+        logger_.info(String.format("分组结束, 花费时间 %5f seconds", (System.currentTimeMillis() - divideStartTime) / 1000.0));
+        return groups;
+    }
+
+    /**
+     * 对所有分组都进行合并
+     * @param groups 分组情况
+     * @param threshold 合并阈值
+     */
+    public void merge(List<List<Integer>> groups, double threshold){
+        logger_.info(String.format("开始合并, 当前顶点的合并阈值:%5f", threshold));
+        long mergeStartTime = System.currentTimeMillis();
+        for(List<Integer> group : groups){
+            HashMap<Integer, HashMap<Integer, Integer>> hm = createW(group);
+            int initial_size = hm.size();
+            while (hm.size() > 1) {
+                Random rand = new Random();
+                // 从组内随机找到一个超点A
+                int A = rand.nextInt(initial_size);
+                if (hm.get(A) == null) continue;
+                // 变量max记录最大的Jaccard_similarity
+                double max = 0;
+                // 变量idx记录最大Jaccard_similarity的那个顶点
+                int idx = -1;
+                // 遍历组内其他顶点，找到与A的Jaccard Similarity最大的那个顶点
+                for (int j = 0; j < initial_size; j++) {
+                    if (hm.get(j) == null)
+                        continue;
+                    if (j == A) continue;
+                    double jaccard_similarity = computeJacSim(hm.get(A), hm.get(j));
+                    if (jaccard_similarity > max) {
+                        max = jaccard_similarity;
+                        idx = j;
+                    }
+                }
+                if (idx == -1) {
+                    hm.remove(A);
+                    continue;
+                }
+                // 这里做了一个交换，目的是把编号较大的顶点合并到编号较小的顶点里面
+                if (group.get(A) > group.get(idx)) {
+                    int t = A;
+                    A = idx;
+                    idx = t;
+                }
+                // 计算两个顶点之间的合并收益
+                double savings = computeSaving(hm.get(A), hm.get(idx), group.get(A), group.get(idx));
+                if (savings >= threshold) {
+                    HashMap<Integer, Integer> w_update = updateW(hm.get(A), hm.get(idx));
+                    hm.replace(A, w_update);
+                    hm.remove(idx);
+                    updateSuperNode(group.get(A), group.get(idx));
+                } else {
+                    hm.remove(A);
+                }
+
+            }
+        }
+        logger_.info(String.format("合并结束, 花费时间 %5f seconds", (System.currentTimeMillis() - mergeStartTime) / 1000.0));
     }
 
     /**
@@ -1438,6 +1767,9 @@ public class Summary {
         System.out.println("Drop Compression: " + (1 - (P.size() + Cp_0.size() + Cm_0.size() * 1.0) / (Gr.numArcs() / 2 * 1.0)));
     }
 
+    /**
+     * 这个函数用于检查数据集是否有自环边，如果存在则有问题
+     */
     public void checkDataSet(){
         int self_loop = 0;
         int arcs = 0;
@@ -1456,6 +1788,10 @@ public class Summary {
      * @param print_iteration_offset 每执行多少次迭代就进行一次 encode 和 evaluate 进行结果输出
      */
     public void run(int iteration, int print_iteration_offset) {
+
+    }
+
+    public void run(int iteration, int print_iteration_offset, int max_group_size, int hierarchical_k){
 
     }
 }
