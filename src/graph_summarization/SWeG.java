@@ -125,6 +125,15 @@ public class SWeG extends  Summary{
         return counter;
     }
 
+    public int shingleValue(int u) {
+        int f_u = h[u];
+        for(int v : neighbors_[u]){
+            if(f_u > h[v]) f_u = h[v];
+        }
+        return f_u;
+    }
+
+
     /**
      * 分组阶段，SWeG通过 shingle值对顶点进行划分
      * 分组完成后，可以通过遍历 G 得到每个组，相同组的G[i]值相等

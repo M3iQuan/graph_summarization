@@ -19,6 +19,11 @@ public class Summary {
     // 图的邻居属性，因为有的图存在自环边，因此自行修改
     int[][] neighbors_;
 
+    // 参数signature_length是指LSH算法中的k的大小
+    int signature_length;
+    // 参数max_group_size是指每个小组允许的最大顶点数量, 超过阈值的小组需要进行切割
+    int max_group_size;
+
     // 图的顶点数量
     int n;
     // 超点数组，用来指明每个顶点的超点编号，如 S[3]=2 表示原图顶点3的超点编号是2
@@ -55,13 +60,13 @@ public class Summary {
         // 调用 webgraph 框架来读取数据并构造图
         Gr = ImmutableGraph.loadMapped(basename);
         n = Gr.numNodes();
-
+        signature_length = 0;
+        max_group_size = 0;
         // 修正邻居集合
         neighbors_ = new int[n][];
         S = new int[n];
         I = new int[n];
         J = new int[n];
-
 
         logger_.info("调用初始化函数: 开始初始化数据结构，并纠正数据集中错误的顶点邻居");
         // 初始化每个顶点为一个超点，即分别设置 S[i]=i, I[i]=i 和 J[i]=i
@@ -81,6 +86,24 @@ public class Summary {
                 neighbors_[i][j] = temp.get(j);
             }
         }
+    }
+
+    /**
+     * 设置Local Sensitive Hash函数的参数k
+     *
+     * @param signatureLength 参数k
+     */
+    public void setSignature_length(int signatureLength){
+        this.signature_length = signatureLength;
+    }
+
+    /**
+     * 设置每个小组顶点最大数量的阈值
+     *
+     * @param max_group_size 阈值整数
+     */
+    public void setMax_group_size(int max_group_size){
+        this.max_group_size = max_group_size;
     }
 
     /**
@@ -256,127 +279,6 @@ public class Summary {
     }
 
     /**
-     * 测试函数，目前存在问题
-     *
-     * @param w_A         超点A的HashMap
-     * @param w_B         超点B的HashMap
-     * @param supernode_A 超点A的编号
-     * @param supernode_B 超点B的编号
-     * @return
-     */
-    protected double computeSaving_test(HashMap<Integer, Integer> w_A, HashMap<Integer, Integer> w_B, int supernode_A, int supernode_B) {
-        int[] nodes_A = recoverSuperNode(supernode_A);
-        int[] nodes_B = recoverSuperNode(supernode_B);
-        double cost_A = 0, cost_B = 0, cost_AUnionB = 0;
-        // 这个HashMap用于存储与合并后的超点存在边相连的超点大小
-        HashMap<Integer, Integer> candidate_size = new HashMap<Integer, Integer>();
-        // 这个HashMap用于存储与超点A存在边相连的所有边数量
-        HashMap<Integer, Integer> candidate_spA = new HashMap<Integer, Integer>();
-        // 这个HashMap用于存储与超点B存在边相连的所有边数量
-        HashMap<Integer, Integer> candidate_spB = new HashMap<Integer, Integer>();
-
-        // 遍历w_A得到与超点A存在边相连的顶点u以及边数量num
-        for (Integer key : w_A.keySet()) {
-            if (!candidate_size.containsKey(S[key])) {
-                int[] nodes = recoverSuperNode(S[key]);
-                candidate_size.put(S[key], nodes.length);
-                candidate_spA.put(S[key], w_A.get(key));
-            } else {
-                candidate_spA.put(S[key], candidate_spA.get(S[key]) + w_A.get(key));
-            }
-        }
-
-        // 遍历w_B得到与超点B存在边相连的顶点u以及边数量num
-        for (Integer key : w_B.keySet()) {
-            if (!candidate_size.containsKey(S[key])) {
-                int[] nodes = recoverSuperNode(S[key]);
-                candidate_size.put(S[key], nodes.length);
-                candidate_spB.put(S[key], w_B.get(key));
-            } else if (candidate_spB.containsKey(S[key])) {
-                candidate_spB.put(S[key], candidate_spB.get(S[key]) + w_B.get(key));
-            } else {
-                candidate_spB.put(S[key], w_B.get(key));
-            }
-        }
-
-        // 开始计算超点A，B以及合并后超点的代价 cost_A, cost_B 和 cost_AUnionB
-        for (Integer key : candidate_spA.keySet()) {
-            if (key == supernode_A) { // in case of superloop
-                if (candidate_spA.get(key) > (nodes_A.length * 1.0 * (nodes_A.length - 1)) / 4.0) {
-                    cost_A += (nodes_A.length * 1.0 * (nodes_A.length - 1)) / 2.0 - candidate_spA.get(key) ;
-                } else {
-                    cost_A += candidate_spA.get(key);
-                }
-                continue;
-            }
-            if (candidate_spA.get(key) > (nodes_A.length * 1.0 * candidate_size.get(key)) / 2.0)
-                cost_A += (candidate_size.get(key) * nodes_A.length) - candidate_spA.get(key) + 1;
-            else
-                cost_A += candidate_spA.get(key);
-
-            if (key == supernode_B || key == supernode_A)
-                continue;
-
-            if (candidate_spB.containsKey(key)) {
-                if ((candidate_spA.get(key) + candidate_spB.get(key)) > ((nodes_A.length + nodes_B.length) * 1.0 * candidate_size.get(key)) / 2.0)
-                    cost_AUnionB += (candidate_size.get(key) * (nodes_A.length + nodes_B.length)) - candidate_spA.get(key) - candidate_spB.get(key) + 1;
-                else
-                    cost_AUnionB += candidate_spA.get(key) + candidate_spB.get(key);
-            } else {
-                if ((candidate_spA.get(key) > ((nodes_A.length + nodes_B.length) * 1.0 * candidate_size.get(key)) / 2.0))
-                    cost_AUnionB += (candidate_size.get(key) * (nodes_A.length + nodes_B.length)) - candidate_spA.get(key) + 1;
-                else
-                    cost_AUnionB += candidate_spA.get(key);
-            }
-        }
-        for (Integer key : candidate_spB.keySet()) {
-            if (key == supernode_B) { // in case of superloop
-                if (candidate_spB.get(key) > (nodes_B.length * 1.0 * (nodes_B.length - 1)) / 4.0) {
-                    cost_B += (nodes_B.length * 1.0 * (nodes_B.length - 1)) / 2.0 - candidate_spB.get(key);
-                } else {
-                    cost_B += candidate_spB.get(key);
-                }
-                continue;
-            }
-
-            if (candidate_spB.get(key) > (nodes_B.length * 1.0 * candidate_size.get(key)) / 2.0)
-                cost_B += (candidate_size.get(key) * nodes_B.length) - candidate_spB.get(key) + 1;
-            else
-                cost_B += candidate_spB.get(key);
-
-            if (candidate_spA.containsKey(key) || key == supernode_A || key == supernode_B) {
-                continue;
-            } else {
-                if ((candidate_spB.get(key) > ((nodes_A.length + nodes_B.length) * 1.0 * candidate_size.get(key)) / 2))
-                    cost_AUnionB += (candidate_size.get(key) * (nodes_A.length + nodes_B.length)) - candidate_spB.get(key) + 1;
-                else
-                    cost_AUnionB += candidate_spB.get(key);
-            }
-        }
-
-        int aUnionBEdges = 0;
-        // 超点A存在自环边
-        if (candidate_spA.containsKey(supernode_A))
-            aUnionBEdges += candidate_spA.get(supernode_A);
-        // 超点A和B存在超边
-        if (candidate_spA.containsKey(supernode_B))
-            aUnionBEdges += candidate_spA.get(supernode_B);
-        // 超点B存在自环边
-        if (candidate_spB.containsKey(supernode_B))
-            aUnionBEdges += candidate_spB.get(supernode_B);
-        if (aUnionBEdges > 0) {
-            if (aUnionBEdges > ((nodes_A.length + nodes_B.length) * 1.0 * (nodes_A.length + nodes_B.length - 1.0)) / 4.0) {
-                cost_AUnionB += ((nodes_A.length + nodes_B.length) * 1.0 * (nodes_A.length + nodes_B.length - 1.0)) / 2.0 - aUnionBEdges;
-
-            } else {
-                cost_AUnionB += aUnionBEdges;
-            }
-        }
-
-        return 1 - (cost_AUnionB) / (cost_A + cost_B);
-    }
-
-    /**
      * 计算两个超点之间的Saving，即合并能带来的收益
      *
      * @param w_A         超点A的HashMap
@@ -487,12 +389,12 @@ public class Summary {
 
     /**
      * 传入参数k和随机生成的数组D, 为超点A计算其LSH签名, 使用的是单枚举算法
-     * @param k LSH签名的长度
      * @param A 超点A的编号
+     * @param k LSH签名的长度
      * @param rot_direction 随机生成的数组D
      * @return 返回超点A的LSH签名对象，为OnePermHashSig
      */
-    protected OnePermHashSig generateSignature(int k, int A, int[] rot_direction) {
+    protected OnePermHashSig generateSignature(int A, int k, int[] rot_direction) {
         // 通过参数k,确定签名的块数k_bins 和 每一块的长度 bin_size
         int k_bins = k;
         int bin_size = n / k_bins;
@@ -542,6 +444,8 @@ public class Summary {
 
     /**
      * 为超点计算shingle签名
+     * 每个超点A的shingle值等于其所有顶点shingle值的最小值, 而每个顶点shingle值等于其邻域内所有顶点的最小重排编号
+     *
      * @param A 超点A的编号
      * @return 一个整数值
      */
@@ -563,22 +467,6 @@ public class Summary {
                 break;
         }
         return shingle;
-    }
-
-    /**
-     * 返回顶点u的shingle值, 方法是计算顶点集合 {u Union N(u)} 的最小 shingle 值
-     * @param u 顶点的编号
-     * @return 一个整数值
-     */
-    protected int shingleValue(int u) {
-        int f_u = h[u];
-        int[] neighbors = neighbors_[u];
-        for (int v : neighbors) {
-            if (f_u > h[v]) {
-                f_u = h[v];
-            }
-        }
-        return f_u;
     }
 
     /**
@@ -617,6 +505,7 @@ public class Summary {
         }
         return groups;
     }
+
     /**
      * 默认分组, 采用的是shingle方式, 如果小组顶点数量大于max_group_size, 则采用顺序切割
      * @param max_group_size 小组的最大顶点数量
@@ -1031,7 +920,8 @@ public class Summary {
 
     /**
      * 新的编码函数，与之前不同在于对自环进行了修改
-     * @return
+     *
+     * @return 运行时间
      */
     public double encodePhase_new2(){
 //        System.out.println("# Encode Phase");
@@ -1238,7 +1128,8 @@ public class Summary {
 
     /**
      * 新的编码函数，与之前不同在与对自环进行了修改，并且用了新的结构来存储边结构，能够用于后续的恢复邻居
-     * @return
+     *
+     * @return 运行时间
      */
     public double encodePhase_test(){
         logger_.info("开始进行边最优编码, 同时采用了P_neighbors 和 P 两种方式...");
@@ -1500,6 +1391,7 @@ public class Summary {
 
     /**
      * 计算当前的压缩率
+     *
      * @return 压缩后的边数量
      */
     public int calculateCompression(){
@@ -1512,9 +1404,10 @@ public class Summary {
      * 通过Summary Graph来恢复某个点u的邻居集合
      * 参数method=new, 对应使用了数据结构 P, Cp_0, Cp_1, Cm_0 和 Cm_1
      * 参数method=test, 对应使用了数据结构 P_neighbors, Cp_neighbors 和 Cm_neighbors
+     *
      * @param u 顶点u的编号
      * @param method 使用哪个方式: new , test
-     * @return
+     * @return 邻居集合
      */
     public Set<Integer> recoverNeighbors(int u, String method) {
         Set<Integer> neighbors = new TreeSet<>();
@@ -1792,6 +1685,15 @@ public class Summary {
     }
 
     public void run(int iteration, int print_iteration_offset, int max_group_size, int hierarchical_k){
+
+    }
+
+
+    public void originTest(){
+
+    }
+
+    public void splitTest(){
 
     }
 }
